@@ -1,0 +1,17 @@
+services:
+  lighter-rust-bbo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: lighter-rust-bbo:local
+    container_name: lighter-rust-bbo
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      RUST_LOG: ${RUST_LOG:-info}
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "3000:3000"

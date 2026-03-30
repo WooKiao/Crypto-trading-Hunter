@@ -1,0 +1,6 @@
+/target
+/.idea
+/.vscode
+.env
+/data/lighter.db
+.DS_Store

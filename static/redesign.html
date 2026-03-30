@@ -1,0 +1,3889 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WooKiao Signal Engine / Control Room</title>
+    <style>
+      :root {
+        --bg: #eadfce;
+        --bg-deep: #d8ccb7;
+        --paper: rgba(252, 248, 238, 0.76);
+        --paper-strong: #f8f2e7;
+        --ink: #1e1d1a;
+        --muted: #6d665d;
+        --line: rgba(30, 29, 26, 0.12);
+        --line-strong: rgba(30, 29, 26, 0.18);
+        --teal: #0d7667;
+        --teal-soft: rgba(13, 118, 103, 0.14);
+        --amber: #b46611;
+        --amber-soft: rgba(180, 102, 17, 0.14);
+        --red: #a23f2d;
+        --red-soft: rgba(162, 63, 45, 0.14);
+        --shadow: 0 24px 80px rgba(36, 32, 24, 0.12);
+        --shadow-soft: 0 18px 42px rgba(36, 32, 24, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family: "Avenir Next", "IBM Plex Sans", sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(255, 247, 221, 0.9), transparent 28%),
+          radial-gradient(circle at bottom right, rgba(13, 118, 103, 0.08), transparent 24%),
+          linear-gradient(180deg, #f5ebdd 0%, var(--bg) 48%, var(--bg-deep) 100%);
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(30, 29, 26, 0.025) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(30, 29, 26, 0.025) 1px, transparent 1px);
+        background-size: 42px 42px;
+        mask-image: radial-gradient(circle at center, black 28%, transparent 80%);
+        opacity: 0.55;
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      .app-shell {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 92px minmax(0, 1fr) 360px;
+        gap: 18px;
+        padding: 18px;
+      }
+
+      .rail,
+      .dock,
+      .workspace {
+        min-width: 0;
+      }
+
+      .rail {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 18px 14px;
+        border-radius: 28px;
+        background: rgba(255, 252, 247, 0.52);
+        backdrop-filter: blur(18px);
+        box-shadow: var(--shadow);
+      }
+
+      .brand {
+        display: grid;
+        gap: 10px;
+        justify-items: center;
+      }
+
+      .brand-mark {
+        width: 48px;
+        height: 48px;
+        display: grid;
+        place-items: center;
+        border-radius: 16px;
+        color: white;
+        background: linear-gradient(140deg, #171613 0%, #0d7667 100%);
+        font-weight: 800;
+        letter-spacing: 0.06em;
+      }
+
+      .brand-copy {
+        writing-mode: vertical-rl;
+        font-size: 11px;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .rail-nav {
+        display: grid;
+        gap: 10px;
+      }
+
+      .rail-button {
+        width: 100%;
+        min-height: 72px;
+        border: 0;
+        border-radius: 18px;
+        background: transparent;
+        color: var(--muted);
+        display: grid;
+        place-items: center;
+        gap: 6px;
+        cursor: pointer;
+        transition:
+          transform 140ms ease,
+          background 140ms ease,
+          color 140ms ease;
+      }
+
+      .rail-button:hover {
+        background: rgba(255, 255, 255, 0.6);
+        color: var(--ink);
+        transform: translateY(-1px);
+      }
+
+      .rail-button.active {
+        background: #171613;
+        color: white;
+        box-shadow: 0 12px 30px rgba(23, 22, 19, 0.22);
+      }
+
+      .rail-icon {
+        width: 20px;
+        height: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .rail-icon svg {
+        width: 20px;
+        height: 20px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .rail-label {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .rail-footer {
+        display: grid;
+        gap: 8px;
+        justify-items: center;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .workspace {
+        display: grid;
+        gap: 18px;
+        align-content: start;
+      }
+
+      .hero {
+        position: relative;
+        overflow: hidden;
+        padding: 28px 30px 26px;
+        border-radius: 32px;
+        background:
+          linear-gradient(135deg, rgba(255, 250, 241, 0.92) 0%, rgba(243, 234, 217, 0.78) 100%);
+        box-shadow: var(--shadow);
+      }
+
+      .hero::after {
+        content: "";
+        position: absolute;
+        top: -26%;
+        right: -8%;
+        width: 340px;
+        height: 340px;
+        border-radius: 50%;
+        background:
+          radial-gradient(circle at 30% 30%, rgba(13, 118, 103, 0.2), transparent 58%),
+          radial-gradient(circle at 70% 70%, rgba(180, 102, 17, 0.16), transparent 48%);
+        pointer-events: none;
+      }
+
+      .hero-top {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(260px, 320px);
+        align-items: start;
+        gap: 26px;
+        margin-bottom: 24px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .eyebrow::before {
+        content: "";
+        width: 34px;
+        height: 1px;
+        background: currentColor;
+      }
+
+      .hero-copy {
+        max-width: 780px;
+        flex: 1;
+        display: grid;
+        gap: 14px;
+      }
+
+      .hero-utility-title {
+        margin: 0;
+        font-size: 28px;
+        line-height: 1;
+        letter-spacing: -0.05em;
+      }
+
+      .hero-copy p {
+        margin: 0;
+        max-width: 640px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .hero-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .button {
+        border: 0;
+        border-radius: 999px;
+        padding: 12px 18px;
+        background: #171613;
+        color: white;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 140ms ease, opacity 140ms ease;
+      }
+
+      .button:hover {
+        transform: translateY(-1px);
+      }
+
+      .button.secondary {
+        background: rgba(255, 255, 255, 0.72);
+        color: var(--ink);
+        border: 1px solid var(--line);
+      }
+
+      .hero-status-card {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        align-items: stretch;
+        flex-shrink: 0;
+        min-width: 0;
+        padding: 16px;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.5);
+        border: 1px solid rgba(30, 29, 26, 0.09);
+        box-shadow: var(--shadow-soft);
+      }
+
+      .hero-banner-toggle {
+        width: fit-content;
+      }
+
+      .hero.is-collapsed .hero-top {
+        margin-bottom: 0;
+      }
+
+      .hero.is-collapsed .hero-copy {
+        display: none;
+      }
+
+      .hero.is-collapsed .hero-strip {
+        margin-top: 16px;
+      }
+
+      .hero-status-card .tag {
+        align-self: flex-start;
+      }
+
+      .hero-social-links {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line);
+      }
+
+      .hero-social-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .hero-social-label {
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        color: var(--ink);
+        min-width: 90px;
+      }
+
+      .hero-social-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        color: var(--text);
+        text-decoration: none;
+        transition: background 0.15s, border-color 0.15s;
+      }
+
+      .hero-social-link:hover {
+        background: var(--line);
+      }
+
+      .hero-social-link svg {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+      }
+
+      .hero-status-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(90px, 1fr));
+        grid-template-rows: repeat(3, 1fr);
+        gap: 12px 20px;
+        background: rgba(255, 255, 255, 0.26);
+        border: 1px solid rgba(30, 29, 26, 0.07);
+        border-radius: 20px;
+        padding: 16px 20px;
+        backdrop-filter: blur(12px);
+        flex: 1;
+      }
+
+      .hero-stat {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .hero-stat-label {
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .hero-stat-value {
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+      }
+
+      .hero-strip {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+        gap: 12px;
+      }
+
+      .strip-item {
+        padding: 14px 14px 0;
+        border-top: 1px solid var(--line);
+        transition: transform 140ms ease, background 140ms ease;
+      }
+
+      .strip-item:hover {
+        transform: translateY(-1px);
+        background: rgba(255, 255, 255, 0.24);
+        border-radius: 16px;
+      }
+
+      .strip-label {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--muted);
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .strip-value {
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+      }
+
+      .strip-meta {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .stage {
+        display: grid;
+        gap: 18px;
+      }
+
+      .view {
+        display: none;
+        gap: 18px;
+      }
+
+      .view.active,
+      .view.leaving {
+        display: grid;
+      }
+
+      .view.active {
+        animation: rise 220ms ease forwards;
+      }
+
+      .view.leaving {
+        animation: fadeAway 180ms ease forwards;
+        pointer-events: none;
+      }
+
+      @keyframes fadeAway {
+        from {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        to {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+      }
+
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .section {
+        padding: 22px;
+        border-radius: 28px;
+        background: var(--paper);
+        backdrop-filter: blur(16px);
+        box-shadow: var(--shadow);
+        transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+      }
+
+      .section:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 28px 86px rgba(36, 32, 24, 0.14);
+      }
+
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+
+      .section-title {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .section-note {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .overview-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+        gap: 18px;
+        align-items: start;
+      }
+
+      .summary-band {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .summary-cell {
+        padding: 14px 0 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .summary-cell strong {
+        display: block;
+        font-size: 26px;
+        letter-spacing: -0.05em;
+      }
+
+      .summary-cell span {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .signal-tape,
+      .order-stack,
+      .connection-list,
+      .market-radar,
+      .breakdown-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .scroll-region {
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding-right: 8px;
+        padding-bottom: 6px;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(30, 29, 26, 0.18) transparent;
+        mask-image: linear-gradient(to bottom, transparent 0, black 18px, black calc(100% - 18px), transparent 100%);
+      }
+
+      .scroll-region::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .scroll-region::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .scroll-region::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        background: rgba(30, 29, 26, 0.16);
+      }
+
+      .scroll-region.compact {
+        max-height: 240px;
+      }
+
+      .scroll-region.snug {
+        max-height: 320px;
+      }
+
+      .scroll-region.medium {
+        max-height: 360px;
+      }
+
+      .scroll-region.tall {
+        max-height: 460px;
+      }
+
+      .feed-item,
+      .order-item,
+      .connection-item,
+      .radar-row,
+      .breakdown-row {
+        display: grid;
+        gap: 8px;
+        padding: 14px 14px;
+        border-top: 1px solid var(--line);
+        border-radius: 18px;
+        transition: background 140ms ease, transform 140ms ease;
+      }
+
+      .feed-item:first-child,
+      .order-item:first-child,
+      .connection-item:first-child,
+      .radar-row:first-child,
+      .breakdown-row:first-child {
+        border-top: 0;
+        padding-top: 14px;
+      }
+
+      .feed-item:hover,
+      .order-item:hover,
+      .connection-item:hover,
+      .radar-row:hover,
+      .breakdown-row:hover {
+        background: rgba(255, 255, 255, 0.48);
+        transform: translateY(-1px);
+      }
+
+      .row-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .symbol-line {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        min-width: 0;
+      }
+
+      .symbol-name {
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 28px;
+        padding: 0 12px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        background: rgba(255, 255, 255, 0.6);
+        border: 1px solid var(--line);
+      }
+
+      .tag.bullish,
+      .tag.live,
+      .tag.good {
+        background: var(--teal-soft);
+        color: var(--teal);
+        border-color: rgba(13, 118, 103, 0.18);
+      }
+
+      .tag.bearish,
+      .tag.risk {
+        background: var(--amber-soft);
+        color: var(--amber);
+        border-color: rgba(180, 102, 17, 0.22);
+      }
+
+      .tag.closed,
+      .tag.off {
+        background: rgba(255, 255, 255, 0.44);
+        color: var(--muted);
+      }
+
+      .tag.armed {
+        background: var(--red-soft);
+        color: var(--red);
+        border-color: rgba(162, 63, 45, 0.2);
+      }
+
+      .feed-meta,
+      .order-meta,
+      .connection-meta,
+      .radar-meta {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .focus-board {
+        display: grid;
+        gap: 18px;
+      }
+
+      .focus-card {
+        padding: 18px;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.55);
+        border: 1px solid rgba(30, 29, 26, 0.08);
+      }
+
+      .focus-kicker {
+        margin: 0 0 10px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .focus-value {
+        margin: 0;
+        font-size: 34px;
+        line-height: 0.95;
+        letter-spacing: -0.06em;
+      }
+
+      .focus-body {
+        margin: 10px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .execution-layout,
+      .performance-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+        gap: 18px;
+        align-items: start;
+      }
+
+      .analytics-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .analytics-cell {
+        padding: 12px 0 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .analytics-cell .value {
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+      }
+
+      .analytics-cell .meta {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .chart-box {
+        display: grid;
+        gap: 12px;
+      }
+
+      .chart-surface {
+        min-height: 240px;
+        border-radius: 24px;
+        padding: 16px;
+        background: rgba(255, 255, 255, 0.48);
+        border: 1px solid rgba(30, 29, 26, 0.08);
+      }
+
+      .chart-title {
+        margin: 0;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .chart-svg {
+        width: 100%;
+        height: 200px;
+      }
+
+      .chart-empty {
+        min-height: 168px;
+        display: grid;
+        place-items: center;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .table-wrap {
+        overflow: auto;
+        border-top: 1px solid var(--line);
+        max-height: 620px;
+        overscroll-behavior: contain;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        padding: 14px 10px;
+        text-align: left;
+        font-size: 13px;
+        border-bottom: 1px solid rgba(30, 29, 26, 0.08);
+      }
+
+      th {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .table-wrap thead th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: var(--paper-strong);
+        box-shadow: inset 0 -1px 0 rgba(30, 29, 26, 0.08);
+      }
+
+      .market-main-row td {
+        white-space: nowrap;
+      }
+
+      .market-cell {
+        display: grid;
+        gap: 4px;
+      }
+
+      .market-primary {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .market-symbol {
+        font-weight: 800;
+      }
+
+      .market-detail-row td {
+        padding-top: 0;
+        color: var(--muted);
+        font-size: 12px;
+        white-space: normal;
+      }
+
+      .market-secondary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 16px;
+      }
+
+      .market-secondary strong {
+        color: var(--ink);
+      }
+
+      .pnl-pos {
+        color: var(--teal);
+      }
+
+      .pnl-neg {
+        color: var(--red);
+      }
+
+      .market-filters {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .performance-controls {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .performance-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .ledger-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .ledger-item {
+        display: grid;
+        gap: 8px;
+        padding: 14px;
+        border-top: 1px solid var(--line);
+        border-radius: 18px;
+        transition: background 140ms ease, transform 140ms ease;
+      }
+
+      .ledger-item:first-child {
+        border-top: 0;
+        padding-top: 14px;
+      }
+
+      .ledger-item:hover {
+        background: rgba(255, 255, 255, 0.48);
+        transform: translateY(-1px);
+      }
+
+      .ledger-copy {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .ghost-input,
+      .ghost-select {
+        min-height: 42px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 0 14px;
+        background: rgba(255, 255, 255, 0.62);
+        color: var(--ink);
+      }
+
+      .dock {
+        display: grid;
+        align-content: start;
+      }
+
+      .dock-inner {
+        position: sticky;
+        top: 18px;
+        display: grid;
+        gap: 14px;
+        padding: 18px;
+        border-radius: 30px;
+        background:
+          linear-gradient(180deg, rgba(26, 24, 21, 0.96) 0%, rgba(20, 18, 16, 0.94) 100%);
+        color: rgba(255, 252, 245, 0.92);
+        box-shadow: 0 26px 90px rgba(12, 11, 10, 0.28);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .dock-top {
+        padding-bottom: 14px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      }
+
+      .dock-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+
+      .dock-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .dock-live-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 28px;
+        padding: 0 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 252, 245, 0.86);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .dock-live-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.34);
+        box-shadow: 0 0 0 0 rgba(115, 214, 172, 0);
+      }
+
+      .dock-live-dot.live {
+        background: #73d6ac;
+        animation: pulse-live 1.4s ease infinite;
+      }
+
+      @keyframes pulse-live {
+        0% {
+          box-shadow: 0 0 0 0 rgba(115, 214, 172, 0.42);
+        }
+        70% {
+          box-shadow: 0 0 0 10px rgba(115, 214, 172, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(115, 214, 172, 0);
+        }
+      }
+
+      .dock-chip {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        padding: 0 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 252, 245, 0.86);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .dock-chip.warning {
+        color: #ffd28c;
+        background: rgba(180, 102, 17, 0.16);
+        border-color: rgba(180, 102, 17, 0.22);
+      }
+
+      .dock-close {
+        display: none;
+        width: 40px;
+        height: 40px;
+        border: 0;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 252, 245, 0.92);
+        cursor: pointer;
+      }
+
+      .dock h2,
+      .dock h3 {
+        margin: 0;
+      }
+
+      .dock h2 {
+        font-size: 24px;
+        letter-spacing: -0.05em;
+      }
+
+      .dock-note {
+        margin-top: 8px;
+        color: rgba(255, 252, 245, 0.62);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .dock-block {
+        display: grid;
+        gap: 10px;
+        padding-top: 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .dock-block-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .dock-title {
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(255, 252, 245, 0.58);
+      }
+
+      .dock-toggle {
+        width: 28px;
+        height: 28px;
+        border: 0;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 252, 245, 0.78);
+        cursor: pointer;
+        transition: transform 140ms ease, background 140ms ease;
+      }
+
+      .dock-toggle:hover {
+        background: rgba(255, 255, 255, 0.14);
+      }
+
+      .dock-block-body {
+        display: grid;
+        gap: 10px;
+        overflow: hidden;
+        transition: max-height 180ms ease, opacity 180ms ease, transform 180ms ease;
+      }
+
+      .dock-block.is-collapsed .dock-block-body {
+        max-height: 0;
+        opacity: 0;
+        transform: translateY(-4px);
+        pointer-events: none;
+      }
+
+      .dock-block:not(.is-collapsed) .dock-block-body {
+        max-height: 1200px;
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .status-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .status-copy {
+        display: grid;
+        gap: 4px;
+      }
+
+      .status-copy strong {
+        font-size: 15px;
+      }
+
+      .status-copy span {
+        color: rgba(255, 252, 245, 0.62);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .dock-button,
+      .dock-input,
+      .dock-select {
+        min-height: 44px;
+        border-radius: 16px;
+      }
+
+      .dock-button {
+        border: 0;
+        background: rgba(255, 255, 255, 0.9);
+        color: #11100e;
+        font-weight: 800;
+        cursor: pointer;
+        transition: transform 140ms ease, opacity 140ms ease;
+      }
+
+      .dock-button:hover {
+        transform: translateY(-1px);
+      }
+
+      .dock-button.stop {
+        background: rgba(162, 63, 45, 0.92);
+        color: white;
+      }
+
+      .dock-button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .dock-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .dock-field {
+        display: grid;
+        gap: 6px;
+        justify-items: start;
+      }
+
+      .dock-field label {
+        color: rgba(255, 252, 245, 0.62);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .dock-input,
+      .dock-select {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        padding: 0 12px;
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 252, 245, 0.94);
+        width: 100%;
+      }
+
+      .empty-state {
+        display: grid;
+        place-items: center;
+        gap: 10px;
+        min-height: 220px;
+        padding: 24px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.38);
+        border: 1px dashed rgba(30, 29, 26, 0.14);
+        text-align: center;
+      }
+
+      .empty-state-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        background: rgba(13, 118, 103, 0.1);
+        color: var(--teal);
+        font-size: 20px;
+        font-weight: 800;
+      }
+
+      .empty-state-title {
+        font-size: 15px;
+        font-weight: 800;
+      }
+
+      .empty-state-copy {
+        max-width: 320px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .dock-input:disabled,
+      .dock-select:disabled {
+        opacity: 0.45;
+      }
+
+      .dock-foot {
+        color: rgba(255, 252, 245, 0.58);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .dock-link {
+        color: rgba(255, 252, 245, 0.94);
+        text-decoration: none;
+      }
+
+      #mode-toggle-link {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 20px;
+        background: #f59e0b;
+        color: #1a1200;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        text-decoration: none;
+        box-shadow: 0 2px 8px rgba(245,158,11,0.35);
+        transition: background 0.15s, box-shadow 0.15s;
+      }
+
+      #mode-toggle-link:hover {
+        background: #d97706;
+        box-shadow: 0 3px 12px rgba(245,158,11,0.5);
+      }
+
+      .mobile-dock-anchor {
+        display: none;
+      }
+
+      @media (max-width: 1360px) {
+        .app-shell {
+          grid-template-columns: 82px minmax(0, 1fr);
+        }
+
+        .dock {
+          grid-column: 1 / -1;
+        }
+
+        .dock-inner {
+          position: static;
+        }
+      }
+
+      @media (max-width: 1040px) {
+        .hero-top,
+        .hero-strip,
+        .summary-band,
+        .analytics-grid,
+        .dock-grid,
+        .performance-detail-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .hero-top {
+          grid-template-columns: 1fr;
+        }
+
+        .overview-grid,
+        .execution-layout,
+        .performance-layout {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 820px) {
+        .app-shell {
+          grid-template-columns: 1fr;
+          padding: 12px;
+        }
+
+        .rail {
+          order: 0;
+          position: sticky;
+          top: 12px;
+          z-index: 15;
+          padding: 12px;
+          border-radius: 22px;
+          grid-template-columns: auto 1fr auto;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .brand {
+          grid-auto-flow: column;
+          justify-content: start;
+          align-items: center;
+        }
+
+        .brand-copy {
+          writing-mode: initial;
+          transform: none;
+          letter-spacing: 0.14em;
+        }
+
+        .rail-nav {
+          grid-auto-flow: column;
+          grid-auto-columns: 1fr;
+        }
+
+        .rail-button {
+          min-height: 56px;
+        }
+
+        .rail-label {
+          transform: none;
+        }
+
+        .hero {
+          padding: 20px;
+        }
+
+        .hero-strip,
+        .summary-band,
+        .analytics-grid,
+        .dock-grid,
+        .performance-detail-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .dock-input,
+        .dock-select {
+          max-width: 100%;
+        }
+
+        .section,
+        .dock-inner {
+          border-radius: 24px;
+        }
+
+        .rail-footer {
+          justify-items: end;
+          text-align: right;
+        }
+
+        body.dock-open {
+          overflow: hidden;
+        }
+
+        .mobile-dock-anchor {
+          display: inline-flex;
+        }
+
+        .dock {
+          position: fixed;
+          inset: 0;
+          z-index: 20;
+          align-items: end;
+          padding: 12px;
+          background: rgba(17, 16, 14, 0.24);
+          backdrop-filter: blur(10px);
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 180ms ease;
+        }
+
+        .dock.is-open {
+          opacity: 1;
+          pointer-events: auto;
+        }
+
+        .dock-inner {
+          position: relative;
+          top: auto;
+          max-height: min(86vh, 860px);
+          width: 100%;
+          overflow: auto;
+          transform: translateY(24px);
+          transition: transform 220ms ease;
+        }
+
+        .dock.is-open .dock-inner {
+          transform: translateY(0);
+        }
+
+        .dock-close {
+          display: inline-grid;
+          place-items: center;
+        }
+
+        .scroll-region.compact,
+        .scroll-region.medium,
+        .scroll-region.tall,
+        .table-wrap {
+          max-height: none;
+          overflow: visible;
+          padding-right: 0;
+        }
+
+        .scroll-region {
+          mask-image: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="rail">
+        <div class="brand">
+          <div class="brand-mark">WK</div>
+          <div class="brand-copy" data-i18n="brand">Signal Engine</div>
+        </div>
+        <div class="rail-footer">
+          <span id="stamp" data-i18n="stamp.waiting">Waiting for first snapshot...</span>
+          <a class="dock-link" id="mode-toggle-link" href="/?mock=1">Demo Mode</a>
+          <button id="lang-toggle" type="button" style="background:none;border:none;cursor:pointer;font-size:11px;font-weight:700;letter-spacing:0.08em;color:var(--muted);padding:2px 4px;margin-top:4px;">中</button>
+        </div>
+        <nav class="rail-nav" id="rail-nav" aria-label="Views">
+          <button class="rail-button active" data-view="overview" title="Overview">
+            <span class="rail-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M4 12h4l2-5 4 10 2-5h4" />
+              </svg>
+            </span>
+            <span class="rail-label" data-i18n="rail.pulse">Pulse</span>
+          </button>
+          <button class="rail-button" data-view="execution" title="Execution">
+            <span class="rail-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M5 7h14" />
+                <path d="M5 12h14" />
+                <path d="M5 17h9" />
+              </svg>
+            </span>
+            <span class="rail-label" data-i18n="rail.orders">Orders</span>
+          </button>
+          <button class="rail-button" data-view="performance" title="Performance">
+            <span class="rail-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M5 18V6" />
+                <path d="M11 18v-8" />
+                <path d="M17 18v-4" />
+              </svg>
+            </span>
+            <span class="rail-label" data-i18n="rail.pnl">PnL</span>
+          </button>
+          <button class="rail-button" data-view="atlas" title="Market Atlas">
+            <span class="rail-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="7" />
+                <path d="M5 12h14" />
+                <path d="M12 5c2 2.2 3 4.5 3 7s-1 4.8-3 7c-2-2.2-3-4.5-3-7s1-4.8 3-7z" />
+              </svg>
+            </span>
+            <span class="rail-label" data-i18n="rail.atlas">Atlas</span>
+          </button>
+        </nav>
+      </aside>
+
+      <main class="workspace">
+        <section class="hero">
+          <div class="hero-top">
+            <div class="hero-copy">
+              <span class="eyebrow" data-i18n="hero.eyebrow">Control Room</span>
+              <h2 class="hero-utility-title" data-i18n="hero.title">Live Operating Frame</h2>
+              <p id="hero-utility-copy" data-i18n="hero.desc">
+                Stream posture, thresholds, and refresh state are summarized here while detailed controls stay in the deck.
+              </p>
+              <div class="hero-actions">
+                <button class="button mobile-dock-anchor" id="jump-to-dock" type="button">
+                  Open Control Deck
+                </button>
+                <button class="button secondary hero-banner-toggle" id="hero-banner-toggle" type="button" style="display:none" aria-hidden="true">
+                  Collapse Banner
+                </button>
+                <button class="button secondary" id="jump-to-live-signals" type="button" style="display:none" aria-hidden="true">
+                  Jump to Signal Tape
+                </button>
+              </div>
+              <div class="hero-social-links">
+                <div class="hero-social-group">
+                  <span class="hero-social-label" data-i18n="social.follow">关注我</span>
+                  <a class="hero-social-link" href="https://x.com/TraderX548826" target="_blank" rel="noreferrer noopener" aria-label="Follow TraderX on X" title="Follow TraderX on X">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.244 2H21l-6.01 6.868L22 22h-5.94l-4.652-7.004L5.28 22H2.522l6.427-7.345L2 2h6.09l4.205 6.436zM17.276 20.2h1.526L7.259 3.706H5.623z"/></svg>
+                  </a>
+                </div>
+                <div class="hero-social-group">
+                  <span class="hero-social-label" data-i18n="social.exchange">高返佣交易所</span>
+                  <a class="hero-social-link" href="https://www.gateport.business/share/avuwuwte" target="_blank" rel="noreferrer noopener" aria-label="Gate referral" title="Gate">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3.5a8.5 8.5 0 1 0 8.5 8.5h-5.4a3.1 3.1 0 1 1-3.1-3.1z"/><rect x="11.9" y="6.3" width="4.8" height="4.8" fill="#2ad7a4"/></svg>
+                  </a>
+                  <a class="hero-social-link" href="https://partner.hdmune.cn/bg/mcqta56y" target="_blank" rel="noreferrer noopener" aria-label="Bitget referral" title="Bitget">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7.2 4.2h5.7L7.3 9.8l4.5 4.5H6.1L1.6 9.8z"/><path fill="currentColor" d="M11 9.8h5.7l5.7 5.7-5.7 5.7H11l5.4-5.7z"/></svg>
+                  </a>
+                </div>
+              </div>
+            </div>
+            <div class="hero-status-card">
+              <span class="tag" id="hero-live-tag">Standby</span>
+              <div class="hero-status-grid">
+                <div class="hero-stat">
+                  <span class="hero-stat-label" data-i18n="stat.latency">Latency</span>
+                  <span class="hero-stat-value" id="hstat-latency">--</span>
+                </div>
+                <div class="hero-stat">
+                  <span class="hero-stat-label" data-i18n="stat.signals">Signals</span>
+                  <span class="hero-stat-value" id="hstat-signals">0</span>
+                </div>
+                <div class="hero-stat">
+                  <span class="hero-stat-label" data-i18n="stat.orders">Orders</span>
+                  <span class="hero-stat-value" id="hstat-orders">0</span>
+                </div>
+                <div class="hero-stat">
+                  <span class="hero-stat-label" data-i18n="stat.markets">Markets</span>
+                  <span class="hero-stat-value" id="hstat-markets">0</span>
+                </div>
+                <div class="hero-stat">
+                  <span class="hero-stat-label" data-i18n="stat.pnl">PnL</span>
+                  <span class="hero-stat-value" id="hstat-pnl">--</span>
+                </div>
+                <div class="hero-stat">
+                  <span class="hero-stat-label" data-i18n="stat.winRate">Win Rate</span>
+                  <span class="hero-stat-value" id="hstat-winrate">--</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="hero-strip">
+            <div class="strip-item">
+              <span class="strip-label" data-i18n="strip.stream">Stream</span>
+              <div class="strip-value" id="hero-stream-value">All stopped</div>
+              <div class="strip-meta" id="hero-stream-meta">Waiting for manual start</div>
+            </div>
+            <div class="strip-item">
+              <span class="strip-label" data-i18n="strip.pipeline">Pipeline</span>
+              <div class="strip-value" id="hero-pipeline-value">--</div>
+              <div class="strip-meta" id="hero-pipeline-meta">No recent latency sample</div>
+            </div>
+            <div class="strip-item">
+              <span class="strip-label" data-i18n="strip.activeOrders">Active Orders</span>
+              <div class="strip-value" id="hero-orders-value">0</div>
+              <div class="strip-meta" id="hero-orders-meta">Simulated positions</div>
+            </div>
+            <div class="strip-item">
+              <span class="strip-label" data-i18n="strip.markets">Markets</span>
+              <div class="strip-value" id="hero-markets-value">0</div>
+              <div class="strip-meta" id="hero-markets-meta">No active universe loaded</div>
+            </div>
+            <div class="strip-item">
+              <span class="strip-label" data-i18n="strip.restSync">REST Sync</span>
+              <div class="strip-value" id="hero-rest-value">--</div>
+              <div class="strip-meta" id="hero-rest-meta">Waiting for metadata sync</div>
+            </div>
+          </div>
+        </section>
+
+        <div class="stage">
+          <section class="view active" id="view-overview">
+            <section class="section">
+              <div class="section-head">
+                <h2 class="section-title" data-i18n="section.currentPosture">Current Posture</h2>
+                <span class="section-note" data-i18n="note.currentPosture">Connection health, lag, message freshness, and execution state.</span>
+              </div>
+              <div class="summary-band">
+                <div class="summary-cell">
+                  <strong id="summary-connections">--</strong>
+                  <span id="summary-connections-meta">Connections</span>
+                </div>
+                <div class="summary-cell">
+                  <strong id="summary-latency">--</strong>
+                  <span id="summary-latency-meta">Exchange latency</span>
+                </div>
+                <div class="summary-cell">
+                  <strong id="summary-message-age">--</strong>
+                  <span id="summary-message-meta">Last market message age</span>
+                </div>
+                <div class="summary-cell">
+                  <strong id="summary-live-state">--</strong>
+                  <span id="summary-live-meta">Execution posture</span>
+                </div>
+              </div>
+            </section>
+
+            <div class="overview-grid">
+              <section class="section" id="live-signals-section" style="display:flex;flex-direction:column;">
+                <div class="section-head">
+                  <h2 class="section-title" data-i18n="section.signalTape">Signal Tape</h2>
+                  <span class="section-note" id="signal-count-text">0 recent signals</span>
+                </div>
+                <div class="signal-tape scroll-region" id="signal-tape" style="flex:1;min-height:0;max-height:none;overflow-y:auto;"></div>
+              </section>
+
+              <div class="focus-board">
+                <section class="section">
+                  <div class="section-head">
+                    <h2 class="section-title" data-i18n="section.focusBoard">Focus Board</h2>
+                    <span class="section-note" data-i18n="note.focusBoard">Two operating facts worth resolving before you touch risk.</span>
+                  </div>
+                  <div class="focus-card">
+                    <p class="focus-kicker" data-i18n="focus.liveExecution">Live Execution</p>
+                    <h3 class="focus-value" id="focus-live-title">Standby</h3>
+                    <p class="focus-body" id="focus-live-body">No backend credentials detected yet.</p>
+                  </div>
+                  <div class="focus-card">
+                    <p class="focus-kicker" data-i18n="focus.topMarket">Top Market By Open Interest</p>
+                    <h3 class="focus-value" id="focus-market-title">--</h3>
+                    <p class="focus-body" id="focus-market-body">Waiting for an active market universe.</p>
+                  </div>
+                </section>
+
+                <section class="section">
+                  <div class="section-head">
+                    <h2 class="section-title" data-i18n="section.connectionLattice">Connection Lattice</h2>
+                    <span class="section-note" data-i18n="note.connectionLattice">Adapter workers, upstream feeds, and metadata services.</span>
+                  </div>
+                  <div class="connection-list scroll-region medium" id="connection-list"></div>
+                </section>
+              </div>
+            </div>
+
+              <section class="section">
+                <div class="section-head">
+                  <h2 class="section-title" data-i18n="section.marketRadar">Market Radar</h2>
+                  <span class="section-note" id="radar-count-text">Largest markets by open interest</span>
+                </div>
+              <div class="market-radar scroll-region snug" id="market-radar"></div>
+            </section>
+          </section>
+
+          <section class="view" id="view-execution">
+            <div class="execution-layout">
+              <section class="section">
+                <div class="section-head">
+                  <h2 class="section-title" data-i18n="section.orderStack">Order Stack</h2>
+                  <span class="section-note" id="order-count-text">0 orders tracked</span>
+                </div>
+                <div class="order-stack scroll-region tall" id="order-stack"></div>
+              </section>
+
+              <section class="section">
+                <div class="section-head">
+                  <h2 class="section-title" data-i18n="section.executionRules">Execution Rules</h2>
+                  <span class="section-note" data-i18n="note.executionRules">Budget, open policy, scale-out, and fail-safe posture.</span>
+                </div>
+                <div class="breakdown-list">
+                  <div class="breakdown-row">
+                    <div class="row-top">
+                      <strong data-i18n="exec.openPolicy">Open Policy</strong>
+                      <span class="tag" id="execution-open-tag">--</span>
+                    </div>
+                    <div class="feed-meta" id="execution-open-copy">--</div>
+                  </div>
+                  <div class="breakdown-row">
+                    <div class="row-top">
+                      <strong data-i18n="exec.orderBudget">Order Budget</strong>
+                      <span class="tag" id="execution-budget-tag">--</span>
+                    </div>
+                    <div class="feed-meta" id="execution-budget-copy">--</div>
+                  </div>
+                  <div class="breakdown-row">
+                    <div class="row-top">
+                      <strong data-i18n="exec.scaleOut">Scale Out</strong>
+                      <span class="tag good">Legs</span>
+                    </div>
+                    <div class="feed-meta" id="execution-scale-copy">--</div>
+                  </div>
+                  <div class="breakdown-row">
+                    <div class="row-top">
+                      <strong data-i18n="exec.stopsTimeouts">Stops And Timeouts</strong>
+                      <span class="tag risk">Fail-safe</span>
+                    </div>
+                    <div class="feed-meta" id="execution-stop-copy">--</div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </section>
+
+          <section class="view" id="view-performance">
+            <section class="section">
+              <div class="section-head">
+                <h2 class="section-title" data-i18n="section.perfFrame">Performance Frame</h2>
+                <span class="section-note" data-i18n="note.perfFrame">Closed-trade result frame and current unrealized exposure.</span>
+              </div>
+              <div class="analytics-grid">
+                <div class="analytics-cell">
+                  <div class="value" id="pnl-net">--</div>
+                  <div class="meta" id="pnl-net-meta" data-i18n="analytics.netPnl">Net PnL</div>
+                </div>
+                <div class="analytics-cell">
+                  <div class="value" id="pnl-win-rate">--</div>
+                  <div class="meta" id="pnl-win-meta" data-i18n="analytics.winRate">Win rate</div>
+                </div>
+                <div class="analytics-cell">
+                  <div class="value" id="pnl-avg">--</div>
+                  <div class="meta" id="pnl-avg-meta" data-i18n="analytics.avgTrade">Average trade</div>
+                </div>
+                <div class="analytics-cell">
+                  <div class="value" id="pnl-open">--</div>
+                  <div class="meta" id="pnl-open-meta" data-i18n="analytics.unrealized">Unrealized</div>
+                </div>
+              </div>
+            </section>
+
+            <div class="performance-layout">
+              <section class="section chart-box">
+                <div class="section-head">
+                  <h2 class="section-title" data-i18n="section.equityCurve">Equity Curve</h2>
+                  <div class="performance-controls">
+                    <select id="pnl-range-filter" class="ghost-select">
+                      <option value="24h">24h</option>
+                      <option value="7d">7d</option>
+                      <option value="all">All</option>
+                    </select>
+                    <select id="pnl-exchange-filter" class="ghost-select">
+                      <option value="all">All Exchanges</option>
+                      <option value="lighter">lighter</option>
+                      <option value="gate">gate</option>
+                    </select>
+                    <select id="pnl-direction-filter" class="ghost-select">
+                      <option value="all">All Directions</option>
+                      <option value="bullish">bullish</option>
+                      <option value="bearish">bearish</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="chart-surface" id="equity-chart"></div>
+                <div class="chart-surface" id="daily-pnl-chart"></div>
+              </section>
+
+              <section class="section">
+                <div class="section-head">
+                  <h2 class="section-title" data-i18n="section.breakdowns">Breakdowns</h2>
+                  <span class="section-note" data-i18n="note.breakdowns">Where wins and losses are concentrating.</span>
+                </div>
+                <div class="breakdown-list scroll-region snug" id="pnl-breakdowns"></div>
+              </section>
+            </div>
+
+            <div class="performance-detail-grid">
+              <section class="section">
+                <div class="section-head">
+                  <h2 class="section-title" data-i18n="section.recentClosed">Recent Closed</h2>
+                  <span class="section-note" id="pnl-recent-note">Latest realized exits</span>
+                </div>
+                <div class="ledger-list scroll-region medium" id="pnl-recent-list"></div>
+              </section>
+
+              <section class="section">
+                <div class="section-head">
+                  <h2 class="section-title" data-i18n="section.openMark">Open Orders Mark</h2>
+                  <span class="section-note" id="pnl-open-note">Current mark-to-market exposure</span>
+                </div>
+                <div class="ledger-list scroll-region medium" id="pnl-open-list"></div>
+              </section>
+            </div>
+          </section>
+
+          <section class="view" id="view-atlas">
+            <section class="section">
+              <div class="section-head">
+                <h2 class="section-title" data-i18n="section.atlas">Market Atlas</h2>
+                <div class="market-filters">
+                  <select id="market-exchange-filter" class="ghost-select">
+                    <option value="all">All Exchanges</option>
+                    <option value="lighter">lighter</option>
+                    <option value="gate">gate</option>
+                  </select>
+                  <input id="market-search" class="ghost-input" type="search" placeholder="Filter by symbol" />
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th data-i18n="table.market">Market</th>
+                      <th data-i18n="table.last">Last</th>
+                      <th data-i18n="table.bidAsk">Bid / Ask</th>
+                      <th data-i18n="table.funding">Funding</th>
+                      <th data-i18n="table.openInterest">Open Interest</th>
+                    </tr>
+                  </thead>
+                  <tbody id="market-body"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+        </div>
+      </main>
+
+      <aside class="dock" id="control-dock">
+        <div class="dock-inner">
+          <div class="dock-top">
+            <div class="dock-topbar">
+              <div class="dock-summary">
+                <span class="dock-live-indicator">
+                  <span class="dock-live-dot" id="dock-live-dot"></span>
+                  <span id="dock-live-copy">Idle</span>
+                </span>
+                <span class="dock-chip" id="dock-status-chip">Standby</span>
+                <span class="dock-chip" id="dock-dirty-chip">Synced</span>
+              </div>
+              <button class="dock-close" id="dock-close-button" type="button" aria-label="Close control deck">×</button>
+            </div>
+            <div class="dock-title" data-i18n="dock.title">Control Deck</div>
+            <h2 data-i18n="dock.subtitle">Arm feeds, then choose how much risk the engine can spend.</h2>
+            <div class="dock-note" id="dock-note">
+              The prototype keeps the controls together so the operating posture is visible without leaving the main workspace.
+            </div>
+          </div>
+
+          <section class="dock-block" data-dock-block="feeds">
+            <div class="dock-block-head">
+              <div class="dock-title" data-i18n="dock.feeds">Feeds</div>
+              <button class="dock-toggle" type="button" data-dock-toggle="feeds" aria-expanded="true">−</button>
+            </div>
+            <div class="dock-block-body">
+              <div class="status-line">
+                <div class="status-copy">
+                  <strong id="lighter-stream-state">Lighter stopped</strong>
+                  <span id="lighter-stream-hint">Upstream feed idle</span>
+                </div>
+                <button class="dock-button" id="lighter-stream-button" type="button">Start</button>
+              </div>
+              <div class="status-line">
+                <div class="status-copy">
+                  <strong id="gate-stream-state">Gate stopped</strong>
+                  <span id="gate-stream-hint">Upstream feed idle</span>
+                </div>
+                <button class="dock-button" id="gate-stream-button" type="button">Start</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="dock-block" data-dock-block="live">
+            <div class="dock-block-head">
+              <div class="dock-title" data-i18n="dock.liveExecution">Live Execution</div>
+              <button class="dock-toggle" type="button" data-dock-toggle="live" aria-expanded="true">−</button>
+            </div>
+            <div class="dock-block-body">
+              <div class="status-line">
+                <div class="status-copy">
+                  <strong id="live-trading-status">Locked</strong>
+                  <span id="live-trading-hint">No credentials detected</span>
+                </div>
+                <button class="dock-button" id="live-trading-toggle" type="button">Enable</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="dock-block" data-dock-block="window">
+            <div class="dock-block-head">
+              <div class="dock-title" data-i18n="dock.window">Window</div>
+              <button class="dock-toggle" type="button" data-dock-toggle="window" aria-expanded="true">−</button>
+            </div>
+            <div class="dock-block-body">
+              <div class="dock-grid">
+                <div class="dock-field">
+                  <label for="window-hours">Hours</label>
+                  <input id="window-hours" class="dock-input" type="number" min="0.01" step="0.25" />
+                </div>
+                <button class="dock-button" id="window-save" type="button">Apply Window</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="dock-block" data-dock-block="filters">
+            <div class="dock-block-head">
+              <div class="dock-title" data-i18n="dock.signalFilters">Signal Filters</div>
+              <button class="dock-toggle" type="button" data-dock-toggle="filters" aria-expanded="true">−</button>
+            </div>
+            <div class="dock-block-body">
+              <div class="dock-grid">
+                <div class="dock-field">
+                  <label for="price-jump-threshold">Jump %</label>
+                  <input id="price-jump-threshold" class="dock-input" type="number" min="0" step="0.1" />
+                </div>
+                <div class="dock-field">
+                  <label for="oi-threshold">Open Interest</label>
+                  <input id="oi-threshold" class="dock-input" type="number" min="0" step="1000" />
+                </div>
+                <div class="dock-field">
+                  <label for="spread-threshold">Spread %</label>
+                  <input id="spread-threshold" class="dock-input" type="number" min="0" step="0.01" />
+                </div>
+                <div class="dock-field">
+                  <label for="sim-order-quote-size">Order Quote</label>
+                  <input id="sim-order-quote-size" class="dock-input" type="number" min="0.01" step="1" />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="dock-block" data-dock-block="risk">
+            <div class="dock-block-head">
+              <div class="dock-title" data-i18n="dock.riskExit">Risk And Exit</div>
+              <button class="dock-toggle" type="button" data-dock-toggle="risk" aria-expanded="true">−</button>
+            </div>
+            <div class="dock-block-body">
+              <div class="dock-grid">
+                <div class="dock-field">
+                  <label for="max-hold-minutes">Max Hold Min</label>
+                  <input id="max-hold-minutes" class="dock-input" type="number" min="0" step="1" />
+                </div>
+                <div class="dock-field">
+                  <label for="sim-stop-loss-pct">Stop Loss %</label>
+                  <input id="sim-stop-loss-pct" class="dock-input" type="number" min="0" step="0.01" />
+                </div>
+                <div class="dock-field">
+                  <label for="live-open-cooldown-seconds">Cooldown Sec</label>
+                  <input id="live-open-cooldown-seconds" class="dock-input" type="number" min="0" step="1" />
+                </div>
+                <div class="dock-field">
+                  <label for="live-trading-allow-opens">New Live Opens</label>
+                  <select id="live-trading-allow-opens" class="dock-select">
+                    <option value="true">Enabled</option>
+                    <option value="false">Close Only</option>
+                  </select>
+                </div>
+                <div class="dock-field">
+                  <label for="live-max-order-quote-notional">Max Order Quote</label>
+                  <input id="live-max-order-quote-notional" class="dock-input" type="number" min="0" step="1" />
+                </div>
+                <div class="dock-field">
+                  <label for="live-max-symbol-exposure-quote-notional">Max Symbol Quote</label>
+                  <input id="live-max-symbol-exposure-quote-notional" class="dock-input" type="number" min="0" step="1" />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="dock-block" data-dock-block="scale">
+            <div class="dock-block-head">
+              <div class="dock-title" data-i18n="dock.scaleOut">Scale Out</div>
+              <button class="dock-toggle" type="button" data-dock-toggle="scale" aria-expanded="true">−</button>
+            </div>
+            <div class="dock-block-body">
+              <div class="dock-grid">
+                <div class="dock-field">
+                  <label for="sim-take-profit-pct">TP1 %</label>
+                  <input id="sim-take-profit-pct" class="dock-input" type="number" min="0" step="0.01" />
+                </div>
+                <div class="dock-field">
+                  <label for="sim-take-profit-ratio-pct">TP1 Size %</label>
+                  <input id="sim-take-profit-ratio-pct" class="dock-input" type="number" min="0" max="100" step="1" />
+                </div>
+                <div class="dock-field">
+                  <label for="sim-take-profit-pct-2">TP2 %</label>
+                  <input id="sim-take-profit-pct-2" class="dock-input" type="number" min="0" step="0.01" />
+                </div>
+                <div class="dock-field">
+                  <label for="sim-take-profit-ratio-pct-2">TP2 Size %</label>
+                  <input id="sim-take-profit-ratio-pct-2" class="dock-input" type="number" min="0" max="100" step="1" />
+                </div>
+              </div>
+              <button class="dock-button" id="threshold-save" type="button">Save Thresholds</button>
+              <div class="dock-foot" id="threshold-hint">Waiting for current config.</div>
+            </div>
+          </section>
+        </div>
+      </aside>
+    </div>
+
+    <script>
+      const TRANSLATIONS = {
+        zh: {
+          brand: '信号引擎', 'rail.pulse': '概览', 'rail.orders': '订单', 'rail.pnl': '盈亏', 'rail.atlas': '市场',
+          'hero.eyebrow': '控制室', 'hero.title': '实时运营框架',
+          'hero.desc': '流传输状态、阈值和刷新状态在此汇总，详细控制保留在控制台中。',
+          'hero.openDeck': '打开控制台', 'hero.jumpSignals': '跳转信号带',
+          'hero.collapseBanner': '折叠面板', 'hero.expandBanner': '展开面板',
+          'hero.feedsRunning': '数据流运行中', 'hero.allStopped': '全部停止',
+          'hero.startHint': '从控制台启动数据流',
+          'stat.latency': '延迟', 'stat.signals': '信号', 'stat.orders': '订单',
+          'stat.markets': '市场', 'stat.pnl': '盈亏', 'stat.winRate': '胜率',
+          'strip.stream': '数据流', 'strip.pipeline': '管道', 'strip.activeOrders': '活跃订单',
+          'strip.markets': '市场', 'strip.restSync': 'REST同步',
+          'section.currentPosture': '当前态势', 'note.currentPosture': '连接健康、延迟、消息新鲜度和执行状态。',
+          'section.signalTape': '信号带', 'section.focusBoard': '焦点板',
+          'note.focusBoard': '触碰风险前需解决的两个操作事实。',
+          'focus.liveExecution': '实盘执行', 'focus.topMarket': '最高未平仓量市场',
+          'section.connectionLattice': '连接网格', 'note.connectionLattice': '适配器工作线程、上游数据流和元数据服务。',
+          'section.marketRadar': '市场雷达', 'section.orderStack': '订单栈',
+          'section.executionRules': '执行规则', 'note.executionRules': '预算、开仓策略、分批止盈和保护。',
+          'exec.openPolicy': '开仓策略', 'exec.orderBudget': '订单预算',
+          'exec.scaleOut': '分批出场', 'exec.stopsTimeouts': '止损与超时',
+          'section.perfFrame': '绩效框架', 'note.perfFrame': '已平仓交易结果及当前未实现敞口。',
+          'analytics.netPnl': '净盈亏', 'analytics.winRate': '胜率',
+          'analytics.avgTrade': '平均交易', 'analytics.unrealized': '未实现',
+          'section.equityCurve': '权益曲线', 'section.breakdowns': '分类统计',
+          'note.breakdowns': '盈亏集中的地方。',
+          'section.recentClosed': '最近已平仓', 'section.openMark': '持仓盯市',
+          'section.atlas': '市场图谱',
+          'table.market': '市场', 'table.last': '最新价', 'table.bidAsk': '买/卖',
+          'table.funding': '资金费率', 'table.openInterest': '未平仓量',
+          'dock.title': '控制台', 'dock.subtitle': '开启数据流，然后设置引擎可使用的风险预算。',
+          'dock.feeds': '数据流', 'dock.liveExecution': '实盘执行', 'dock.window': '时间窗口',
+          'dock.signalFilters': '信号过滤', 'dock.riskExit': '风险与出场', 'dock.scaleOut': '分批出场',
+          'dock.streamLive': '流运行中', 'dock.streamIdle': '流空闲',
+          'dock.synced': '已同步', 'dock.pendingEdits': '待保存',
+          'label.hours': '小时', 'label.applyWindow': '应用窗口', 'label.jumpPct': '涨幅 %',
+          'label.openInterest': '未平仓量', 'label.spreadPct': '价差 %', 'label.orderQuote': '订单报价',
+          'label.maxHoldMin': '最长持仓(分)', 'label.stopLossPct': '止损 %', 'label.cooldownSec': '冷却秒数',
+          'label.newLiveOpens': '新实盘开仓', 'label.maxOrderQuote': '最大订单报价',
+          'label.maxSymbolQuote': '最大品种报价', 'label.tp1Pct': 'TP1 %', 'label.tp1Size': 'TP1 仓位 %',
+          'label.tp2Pct': 'TP2 %', 'label.tp2Size': 'TP2 仓位 %', 'label.saveThresholds': '保存阈值',
+          'atlas.filterSymbol': '按交易对筛选', 'filter.allExchanges': '全部交易所',
+          'filter.allDirections': '全部方向', 'option.enabled': '启用', 'option.closeOnly': '仅平仓',
+          'stamp.waiting': '等待首次快照…', 'stamp.mock': '模拟模式',
+          'mode.demo': '演示模式', 'mode.backLive': '返回实盘', 'mode.openLive': '打开实时服务',
+          'stream.start': '启动', 'stream.stop': '停止',
+          'stream.lighterLive': 'Lighter 运行中', 'stream.lighterStopped': 'Lighter 已停止',
+          'stream.lighterLiveHint': '市场统计、元数据和行情已激活。', 'stream.lighterStoppedHint': 'Lighter 无上游流量。',
+          'stream.gateLive': 'Gate 运行中', 'stream.gateStopped': 'Gate 已停止',
+          'stream.gateLiveHint': '订单薄行情和元数据已激活。', 'stream.gateStoppedHint': 'Gate 无上游流量。',
+          'live.locked': '已锁定', 'live.armed': '实盘就绪', 'live.closeOnly': '仅平仓',
+          'live.disabled': '已禁用', 'live.noCredentials': '设置后端凭据并重启服务。',
+          'btn.enable': '启用', 'btn.disable': '禁用',
+          'signals.count': (n) => `${n} 条最新信号`,
+          'signals.emptyTitle': '暂无信号', 'signals.emptyCopy': '启动一个或两个交易所数据流以填充信号带。',
+          'orders.count': (n) => `${n} 条跟踪订单`,
+          'orders.emptyTitle': '无跟踪订单', 'orders.emptyCopy': '模拟或实盘执行开始后，订单将在此显示。',
+          'radar.count': (n) => `${n} 个最高未平仓量市场`, 'radar.empty': '暂无市场数据。',
+          'connection.empty': '暂无连接状态报告。',
+          'chart.noOrders': '此范围内无已平仓订单', 'chart.noDailyPnl': '此范围内无每日盈亏',
+          'chart.equityCurve': '权益曲线', 'chart.dailyPnl': '每日盈亏',
+          'pnl.byExchange': '按交易所', 'pnl.topSymbols': '热门品种',
+          'pnl.recentNote': (n) => `当前过滤器下 ${n} 条已平仓订单`,
+          'pnl.openNote': (n) => `当前过滤器下 ${n} 条持仓订单`,
+          'pnl.emptyTitle': '无已实现退出', 'pnl.emptyCopy': '当前过滤器未返回已平仓交易。',
+          'pnl.openEmptyTitle': '无持仓敞口', 'pnl.openEmptyCopy': '没有持仓与当前过滤条件匹配。',
+          'atlas.noFilter': '没有符合当前过滤条件的市场。',
+          'dock.simNarrative': '原型保持控制可见，但后端仍处于模拟模式，因为未找到实盘凭据。',
+          'dock.liveArmedNarrative': (ex) => `${ex} 实盘执行已就绪。离开控制台前请调整风险预算。`,
+          'dock.closeOnlyNarrative': (ex) => `${ex} 实盘平仓仍然有效，但新开仓被有意阻止。`,
+          'dock.configuredNarrative': (ex) => `${ex} 凭据已加载。控制台保持模拟状态，直到您启用实盘执行。`,
+          'summary.noCredentials': '无实盘凭据', 'summary.exchangeTsUnavailable': '交易所时间戳不可用',
+          'social.follow': '关注我', 'social.exchange': '高返佣交易所',
+        },
+      };
+
+      let currentLang = localStorage.getItem('lang') || 'en';
+
+      function t(key, ...args) {
+        if (currentLang !== 'zh') return null;
+        const val = TRANSLATIONS.zh[key];
+        if (val === undefined) return null;
+        if (typeof val === 'function') return val(...args);
+        return val;
+      }
+
+      function applyLang() {
+        const isChinese = currentLang === 'zh';
+        document.querySelectorAll('[data-i18n]').forEach((el) => {
+          if (!el.dataset.i18nEn) el.dataset.i18nEn = el.textContent.trim();
+          const key = el.dataset.i18n;
+          const en = el.dataset.i18nEn;
+          el.textContent = isChinese ? (TRANSLATIONS.zh[key] || en) : en;
+        });
+        [
+          ['window-hours', 'label.hours', 'Hours'],
+          ['price-jump-threshold', 'label.jumpPct', 'Jump %'],
+          ['oi-threshold', 'label.openInterest', 'Open Interest'],
+          ['spread-threshold', 'label.spreadPct', 'Spread %'],
+          ['sim-order-quote-size', 'label.orderQuote', 'Order Quote'],
+          ['max-hold-minutes', 'label.maxHoldMin', 'Max Hold Min'],
+          ['sim-stop-loss-pct', 'label.stopLossPct', 'Stop Loss %'],
+          ['live-open-cooldown-seconds', 'label.cooldownSec', 'Cooldown Sec'],
+          ['live-trading-allow-opens', 'label.newLiveOpens', 'New Live Opens'],
+          ['live-max-order-quote-notional', 'label.maxOrderQuote', 'Max Order Quote'],
+          ['live-max-symbol-exposure-quote-notional', 'label.maxSymbolQuote', 'Max Symbol Quote'],
+          ['sim-take-profit-pct', 'label.tp1Pct', 'TP1 %'],
+          ['sim-take-profit-ratio-pct', 'label.tp1Size', 'TP1 Size %'],
+          ['sim-take-profit-pct-2', 'label.tp2Pct', 'TP2 %'],
+          ['sim-take-profit-ratio-pct-2', 'label.tp2Size', 'TP2 Size %'],
+        ].forEach(([forAttr, key, en]) => {
+          const el = document.querySelector(`label[for="${forAttr}"]`);
+          if (el) el.textContent = isChinese ? (TRANSLATIONS.zh[key] || en) : en;
+        });
+        [
+          ['window-save', 'label.applyWindow', 'Apply Window'],
+          ['threshold-save', 'label.saveThresholds', 'Save Thresholds'],
+          ['jump-to-dock', 'hero.openDeck', 'Open Control Deck'],
+          ['jump-to-live-signals', 'hero.jumpSignals', 'Jump to Signal Tape'],
+        ].forEach(([id, key, en]) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = isChinese ? (TRANSLATIONS.zh[key] || en) : en;
+        });
+        [
+          ['#pnl-exchange-filter option[value="all"]', 'filter.allExchanges', 'All Exchanges'],
+          ['#market-exchange-filter option[value="all"]', 'filter.allExchanges', 'All Exchanges'],
+          ['#pnl-direction-filter option[value="all"]', 'filter.allDirections', 'All Directions'],
+          ['#live-trading-allow-opens option[value="true"]', 'option.enabled', 'Enabled'],
+          ['#live-trading-allow-opens option[value="false"]', 'option.closeOnly', 'Close Only'],
+        ].forEach(([sel, key, en]) => {
+          const el = document.querySelector(sel);
+          if (el) el.textContent = isChinese ? (TRANSLATIONS.zh[key] || en) : en;
+        });
+        const searchInput = document.getElementById('market-search');
+        if (searchInput) searchInput.placeholder = isChinese ? (TRANSLATIONS.zh['atlas.filterSymbol'] || 'Filter by symbol') : 'Filter by symbol';
+        const langToggleBtn = document.getElementById('lang-toggle');
+        if (langToggleBtn) langToggleBtn.textContent = isChinese ? 'EN' : '中';
+        document.documentElement.lang = isChinese ? 'zh' : 'en';
+      }
+
+      function setLang(lang) {
+        currentLang = lang;
+        localStorage.setItem('lang', lang);
+        applyLang();
+        if (typeof latestSnapshot !== 'undefined' && latestSnapshot) render(latestSnapshot);
+        if (typeof latestPnl !== 'undefined' && latestPnl) renderPnl(latestPnl);
+        if (typeof syncHeroBanner === 'function') syncHeroBanner();
+        if (typeof syncStreamButtons === 'function') syncStreamButtons();
+        if (typeof syncLiveTradingControls === 'function') syncLiveTradingControls();
+        if (typeof syncModeToggleLink === 'function') syncModeToggleLink();
+        if (typeof syncDockChrome === 'function') syncDockChrome();
+        if (typeof syncDockNarrative === 'function') syncDockNarrative();
+      }
+
+      const stamp = document.getElementById("stamp");
+      const railNav = document.getElementById("rail-nav");
+      const jumpToDockButton = document.getElementById("jump-to-dock");
+      const jumpToSignalsButton = document.getElementById("jump-to-live-signals");
+      const heroBannerToggleButton = document.getElementById("hero-banner-toggle");
+      const controlDock = document.getElementById("control-dock");
+      const dockCloseButton = document.getElementById("dock-close-button");
+      const dockLiveDot = document.getElementById("dock-live-dot");
+      const dockLiveCopy = document.getElementById("dock-live-copy");
+      const dockStatusChip = document.getElementById("dock-status-chip");
+      const dockDirtyChip = document.getElementById("dock-dirty-chip");
+
+      const heroLiveTag = document.getElementById("hero-live-tag");
+      const heroUtilityCopy = document.getElementById("hero-utility-copy");
+      const heroStreamValue = document.getElementById("hero-stream-value");
+      const heroStreamMeta = document.getElementById("hero-stream-meta");
+      const heroPipelineValue = document.getElementById("hero-pipeline-value");
+      const heroPipelineMeta = document.getElementById("hero-pipeline-meta");
+      const heroOrdersValue = document.getElementById("hero-orders-value");
+      const heroOrdersMeta = document.getElementById("hero-orders-meta");
+      const heroMarketsValue = document.getElementById("hero-markets-value");
+      const heroMarketsMeta = document.getElementById("hero-markets-meta");
+      const heroRestValue = document.getElementById("hero-rest-value");
+      const heroRestMeta = document.getElementById("hero-rest-meta");
+
+      const summaryConnections = document.getElementById("summary-connections");
+      const summaryConnectionsMeta = document.getElementById("summary-connections-meta");
+      const summaryLatency = document.getElementById("summary-latency");
+      const summaryLatencyMeta = document.getElementById("summary-latency-meta");
+      const summaryMessageAge = document.getElementById("summary-message-age");
+      const summaryMessageMeta = document.getElementById("summary-message-meta");
+      const summaryLiveState = document.getElementById("summary-live-state");
+      const summaryLiveMeta = document.getElementById("summary-live-meta");
+
+      const signalCountText = document.getElementById("signal-count-text");
+      const signalTape = document.getElementById("signal-tape");
+      const focusLiveTitle = document.getElementById("focus-live-title");
+      const focusLiveBody = document.getElementById("focus-live-body");
+      const focusMarketTitle = document.getElementById("focus-market-title");
+      const focusMarketBody = document.getElementById("focus-market-body");
+      const connectionList = document.getElementById("connection-list");
+      const radarCountText = document.getElementById("radar-count-text");
+      const marketRadar = document.getElementById("market-radar");
+
+      const orderCountText = document.getElementById("order-count-text");
+      const orderStack = document.getElementById("order-stack");
+      const executionOpenTag = document.getElementById("execution-open-tag");
+      const executionOpenCopy = document.getElementById("execution-open-copy");
+      const executionBudgetTag = document.getElementById("execution-budget-tag");
+      const executionBudgetCopy = document.getElementById("execution-budget-copy");
+      const executionScaleCopy = document.getElementById("execution-scale-copy");
+      const executionStopCopy = document.getElementById("execution-stop-copy");
+
+      const pnlNet = document.getElementById("pnl-net");
+      const pnlNetMeta = document.getElementById("pnl-net-meta");
+      const pnlWinRate = document.getElementById("pnl-win-rate");
+      const pnlWinMeta = document.getElementById("pnl-win-meta");
+      const pnlAvg = document.getElementById("pnl-avg");
+      const pnlAvgMeta = document.getElementById("pnl-avg-meta");
+      const pnlOpen = document.getElementById("pnl-open");
+      const pnlOpenMeta = document.getElementById("pnl-open-meta");
+      const pnlRangeFilter = document.getElementById("pnl-range-filter");
+      const pnlExchangeFilter = document.getElementById("pnl-exchange-filter");
+      const pnlDirectionFilter = document.getElementById("pnl-direction-filter");
+      const equityChart = document.getElementById("equity-chart");
+      const dailyPnlChart = document.getElementById("daily-pnl-chart");
+      const pnlBreakdowns = document.getElementById("pnl-breakdowns");
+      const pnlRecentNote = document.getElementById("pnl-recent-note");
+      const pnlRecentList = document.getElementById("pnl-recent-list");
+      const pnlOpenNote = document.getElementById("pnl-open-note");
+      const pnlOpenList = document.getElementById("pnl-open-list");
+
+      const marketExchangeFilter = document.getElementById("market-exchange-filter");
+      const marketSearch = document.getElementById("market-search");
+      const marketBody = document.getElementById("market-body");
+
+      const lighterStreamState = document.getElementById("lighter-stream-state");
+      const lighterStreamHint = document.getElementById("lighter-stream-hint");
+      const lighterStreamButton = document.getElementById("lighter-stream-button");
+      const gateStreamState = document.getElementById("gate-stream-state");
+      const gateStreamHint = document.getElementById("gate-stream-hint");
+      const gateStreamButton = document.getElementById("gate-stream-button");
+      const liveTradingStatus = document.getElementById("live-trading-status");
+      const liveTradingHint = document.getElementById("live-trading-hint");
+      const liveTradingToggleButton = document.getElementById("live-trading-toggle");
+      const thresholdHint = document.getElementById("threshold-hint");
+      const dockNote = document.getElementById("dock-note");
+      const modeToggleLink = document.getElementById("mode-toggle-link");
+
+      const windowHoursInput = document.getElementById("window-hours");
+      const windowSaveButton = document.getElementById("window-save");
+      const priceJumpThresholdInput = document.getElementById("price-jump-threshold");
+      const oiThresholdInput = document.getElementById("oi-threshold");
+      const spreadThresholdInput = document.getElementById("spread-threshold");
+      const simOrderQuoteSizeInput = document.getElementById("sim-order-quote-size");
+      const maxHoldMinutesInput = document.getElementById("max-hold-minutes");
+      const simStopLossPctInput = document.getElementById("sim-stop-loss-pct");
+      const liveOpenCooldownSecondsInput = document.getElementById("live-open-cooldown-seconds");
+      const liveTradingAllowOpensInput = document.getElementById("live-trading-allow-opens");
+      const liveMaxOrderQuoteNotionalInput = document.getElementById("live-max-order-quote-notional");
+      const liveMaxSymbolExposureQuoteNotionalInput = document.getElementById("live-max-symbol-exposure-quote-notional");
+      const simTakeProfitPctInput = document.getElementById("sim-take-profit-pct");
+      const simTakeProfitRatioPctInput = document.getElementById("sim-take-profit-ratio-pct");
+      const simTakeProfitPct2Input = document.getElementById("sim-take-profit-pct-2");
+      const simTakeProfitRatioPct2Input = document.getElementById("sim-take-profit-ratio-pct-2");
+      const thresholdSaveButton = document.getElementById("threshold-save");
+
+      let currentView = "overview";
+      let currentPnlRange = "24h";
+      let currentPnlExchange = "all";
+      let currentPnlDirection = "all";
+      let currentMarketExchange = "all";
+      let currentMarketSearch = "";
+      let heroBannerCollapsed = false;
+      let dockOpen = false;
+      let currentStreamControl = { lighter: false, gate: false };
+      let currentStreamEnabled = false;
+      let updatingStream = false;
+      let updatingWindow = false;
+      let updatingThresholds = false;
+      let updatingLiveTrading = false;
+      let windowDraftDirty = false;
+      let thresholdDraftDirty = false;
+      let latestSnapshot = null;
+      let latestPnl = null;
+      let lastPnlFetchAt = 0;
+      let viewTransitionTimer = null;
+      const dockSections = {
+        feeds: true,
+        live: true,
+        window: true,
+        filters: true,
+        risk: true,
+        scale: true,
+      };
+
+      function isMobileDockMode() {
+        return window.innerWidth <= 820;
+      }
+
+      function buildModeToggleUrl(enableMock) {
+        if (window.location.protocol === "file:") {
+          return "/";
+        }
+
+        const url = new URL(window.location.href);
+        if (enableMock) {
+          url.searchParams.set("mock", "1");
+        } else {
+          url.searchParams.delete("mock");
+          if (url.pathname === "/redesign") {
+            url.pathname = "/";
+          }
+        }
+
+        const search = url.searchParams.toString();
+        return `${url.pathname}${search ? `?${search}` : ""}${url.hash}`;
+      }
+
+      function syncModeToggleLink() {
+        if (!modeToggleLink) return;
+
+        if (window.location.protocol === "file:") {
+          modeToggleLink.textContent = t('mode.openLive') || "Open Live Server";
+          modeToggleLink.href = "/";
+          return;
+        }
+
+        if (DEMO_MODE) {
+          modeToggleLink.textContent = t('mode.backLive') || "Back To Live";
+          modeToggleLink.href = buildModeToggleUrl(false);
+        } else {
+          modeToggleLink.textContent = t('mode.demo') || "Demo Mode";
+          modeToggleLink.href = buildModeToggleUrl(true);
+        }
+      }
+
+      const state = {
+        window_hours: 1,
+        price_jump_threshold_pct: 2,
+        open_interest_threshold: 500000,
+        spread_threshold_pct: 0.05,
+        max_hold_minutes: 0,
+        sim_order_quote_size: 100,
+        sim_take_profit_pct: 0.1,
+        sim_take_profit_ratio_pct: 100,
+        sim_take_profit_pct_2: 0,
+        sim_take_profit_ratio_pct_2: 0,
+        sim_stop_loss_pct: 0,
+        live_trading_enabled: false,
+        live_trading_allow_opens: true,
+        live_open_cooldown_seconds: 0,
+        live_max_order_quote_notional: 0,
+        live_max_symbol_exposure_quote_notional: 0,
+      };
+
+      const query = new URLSearchParams(window.location.search);
+      const DEMO_MODE = window.location.protocol === "file:" || query.get("mock") === "1";
+      const MOCK_MARKETS = [
+        { exchange: "gate", instrument: "BTC_USDT", symbol: "BTC_USDT", last_trade_price: "84490", prev_last_trade_price: "84280", open_interest: "24100000", window_low_price: "83540", window_high_price: "84610", best_bid_price: "84489.8", best_bid_size: "153", best_ask_price: "84490.1", best_ask_size: "129", current_funding_rate: "0.0110%", precision: "1 / 0", min_base_amount: "1", min_quote_amount: "0", order_quote_limit: "100000" },
+        { exchange: "lighter", instrument: "1", symbol: "BTC/USDC", last_trade_price: "84540", prev_last_trade_price: "84210", open_interest: "12400000", window_low_price: "83200", window_high_price: "84540", best_bid_price: "84535", best_bid_size: "2.4", best_ask_price: "84541", best_ask_size: "1.8", current_funding_rate: "0.0100%", precision: "2 / 4", min_base_amount: "0.0001", min_quote_amount: "5", order_quote_limit: "5000" },
+        { exchange: "gate", instrument: "SOL_USDT", symbol: "SOL_USDT", last_trade_price: "191.4", prev_last_trade_price: "186", open_interest: "8600000", window_low_price: "178.2", window_high_price: "191.6", best_bid_price: "191.35", best_bid_size: "4821", best_ask_price: "191.41", best_ask_size: "3770", current_funding_rate: "0.0200%", precision: "2 / 0", min_base_amount: "1", min_quote_amount: "0", order_quote_limit: "50000" },
+        { exchange: "lighter", instrument: "2", symbol: "ETH/USDC", last_trade_price: "4618", prev_last_trade_price: "4580", open_interest: "6200000", window_low_price: "4490", window_high_price: "4622", best_bid_price: "4617.5", best_bid_size: "18", best_ask_price: "4618.2", best_ask_size: "12", current_funding_rate: "0.0080%", precision: "2 / 3", min_base_amount: "0.001", min_quote_amount: "5", order_quote_limit: "3000" },
+        { exchange: "lighter", instrument: "3", symbol: "DOGE/USDC", last_trade_price: "0.202", prev_last_trade_price: "0.19", open_interest: "2400000", window_low_price: "0.181", window_high_price: "0.204", best_bid_price: "0.2018", best_bid_size: "98000", best_ask_price: "0.2021", best_ask_size: "86000", current_funding_rate: "0.0300%", precision: "4 / 0", min_base_amount: "1", min_quote_amount: "5", order_quote_limit: "2000" },
+        { exchange: "gate", instrument: "ETH_USDT", symbol: "ETH_USDT", last_trade_price: "4609", prev_last_trade_price: "4568", open_interest: "11800000", window_low_price: "4481", window_high_price: "4614", best_bid_price: "4608.8", best_bid_size: "814", best_ask_price: "4609.1", best_ask_size: "632", current_funding_rate: "0.0120%", precision: "2 / 0", min_base_amount: "1", min_quote_amount: "0", order_quote_limit: "60000" },
+        { exchange: "lighter", instrument: "4", symbol: "SOL/USDC", last_trade_price: "190.9", prev_last_trade_price: "184.7", open_interest: "4700000", window_low_price: "179.2", window_high_price: "191.4", best_bid_price: "190.88", best_bid_size: "2200", best_ask_price: "190.94", best_ask_size: "1980", current_funding_rate: "0.0140%", precision: "3 / 1", min_base_amount: "0.1", min_quote_amount: "5", order_quote_limit: "4000" },
+        { exchange: "gate", instrument: "XRP_USDT", symbol: "XRP_USDT", last_trade_price: "1.17", prev_last_trade_price: "1.12", open_interest: "3900000", window_low_price: "1.08", window_high_price: "1.18", best_bid_price: "1.1698", best_bid_size: "128000", best_ask_price: "1.1701", best_ask_size: "110000", current_funding_rate: "0.0170%", precision: "4 / 0", min_base_amount: "1", min_quote_amount: "0", order_quote_limit: "30000" },
+        { exchange: "lighter", instrument: "5", symbol: "ARB/USDC", last_trade_price: "1.94", prev_last_trade_price: "1.88", open_interest: "1800000", window_low_price: "1.81", window_high_price: "1.96", best_bid_price: "1.939", best_bid_size: "45000", best_ask_price: "1.941", best_ask_size: "42000", current_funding_rate: "0.0220%", precision: "4 / 0", min_base_amount: "1", min_quote_amount: "5", order_quote_limit: "2500" },
+        { exchange: "gate", instrument: "DOGE_USDT", symbol: "DOGE_USDT", last_trade_price: "0.203", prev_last_trade_price: "0.194", open_interest: "5600000", window_low_price: "0.188", window_high_price: "0.204", best_bid_price: "0.2029", best_bid_size: "860000", best_ask_price: "0.2031", best_ask_size: "790000", current_funding_rate: "0.0260%", precision: "5 / 0", min_base_amount: "1", min_quote_amount: "0", order_quote_limit: "25000" },
+      ];
+
+      function createMockSignals() {
+        const baseTimestamp = Date.now();
+        const seeds = [
+          ["BTC/USDC", "lighter", "bullish", 2.09, "83920", "84540", "12400000"],
+          ["SOL_USDT", "gate", "bullish", 4.49, "183.4", "191.4", "8600000"],
+          ["DOGE/USDC", "lighter", "bearish", -1.46, "0.205", "0.202", "2400000"],
+          ["ETH_USDT", "gate", "bullish", 1.82, "4548", "4609", "11800000"],
+          ["ARB/USDC", "lighter", "bullish", 2.91, "1.88", "1.94", "1800000"],
+          ["XRP_USDT", "gate", "bullish", 3.80, "1.12", "1.17", "3900000"],
+        ];
+
+        return seeds.flatMap((seed, index) =>
+          Array.from({ length: 3 }, (_, offset) => ({
+            created_at_ms: baseTimestamp - (index * 3 + offset) * 160000,
+            exchange: seed[1],
+            instrument: String(index + 1),
+            symbol: seed[0],
+            direction: seed[2],
+            prev_last_trade_price: seed[4],
+            last_trade_price: seed[5],
+            window_low_price: seed[2] === "bearish" ? String(Number(seed[5]) * 0.94) : String(Number(seed[4]) * 0.99),
+            window_high_price: seed[2] === "bearish" ? String(Number(seed[4]) * 1.01) : String(Number(seed[5]) * 1.01),
+            move_pct: seed[3] + offset * 0.18,
+            open_interest: seed[6],
+            price_jump_threshold_pct: state.price_jump_threshold_pct,
+            open_interest_threshold: state.open_interest_threshold,
+            spread_threshold_pct: state.spread_threshold_pct,
+            time_to_threshold_ms: 180000 + offset * 12000,
+          }))
+        );
+      }
+
+      function createMockOrders() {
+        const baseTimestamp = Date.now();
+        const seeds = [
+          ["BTC/USDC", "lighter", "bullish", "84540", "0.0006", 50.72, "84624.54", "84286.38", "open"],
+          ["BTC/USDC", "lighter", "bullish", "84540", "0.0002", 16.90, "84962.70", "84286.38", "open"],
+          ["SOL_USDT", "gate", "bullish", "191.4", "0.52", 99.53, "193.31", "189.49", "closed"],
+          ["ETH_USDT", "gate", "bullish", "4609", "0.02", 92.18, "4655.09", "4581.35", "open"],
+          ["DOGE_USDT", "gate", "bullish", "0.203", "500", 101.50, "0.205", "0.199", "closed"],
+          ["ARB/USDC", "lighter", "bullish", "1.94", "50", 97.00, "1.96", "1.91", "open"],
+        ];
+
+        return seeds.flatMap((seed, index) =>
+          Array.from({ length: 3 }, (_, offset) => {
+            const status = offset === 2 ? "closed" : seed[8];
+            const openedAt = baseTimestamp - (index * 3 + offset) * 240000;
+            const closedAt = status === "closed" ? openedAt + 90000 : null;
+            return {
+              opened_at_ms: openedAt,
+              closed_at_ms: closedAt,
+              exchange: seed[1],
+              instrument: String(index + 1),
+              symbol: seed[0],
+              direction: seed[2],
+              status,
+              entry_price: seed[3],
+              quantity_base: seed[4],
+              quote_notional: seed[5] + offset * 4,
+              take_profit_price: seed[6],
+              stop_loss_price: seed[7],
+              exit_price: status === "closed" ? seed[6] : null,
+              exit_reason: status === "closed" ? "take_profit" : null,
+            };
+          })
+        );
+      }
+
+      function createMockConnections() {
+        return [
+          { name: "lighter.market_stats", status: currentStreamControl.lighter ? "live (1)" : "stopped" },
+          { name: "lighter.ticker_manager", status: currentStreamControl.lighter ? "live (88)" : "stopped" },
+          { name: "lighter.metadata", status: currentStreamControl.lighter ? "live (1)" : "stopped" },
+          { name: "gate.metadata", status: currentStreamControl.gate ? "connecting" : "stopped" },
+          { name: "gate.book_ticker", status: currentStreamControl.gate ? "live (214)" : "stopped" },
+          { name: "gate.market_stats", status: currentStreamControl.gate ? "live (1)" : "stopped" },
+        ];
+      }
+
+      function createMockSnapshot() {
+        const markets = MOCK_MARKETS;
+        const signals = createMockSignals();
+        const orders = createMockOrders();
+        const connections = createMockConnections();
+        const activeOrders = orders.filter((order) => order.status === "open").length;
+        const liveConnections = connections.filter((item) => item.status.startsWith("live")).length;
+        return {
+          generated_at_ms: Date.now(),
+          status: {
+            stream_enabled: currentStreamControl.lighter || currentStreamControl.gate,
+            stream_control: { ...currentStreamControl },
+            window_hours: state.window_hours,
+            price_jump_threshold_pct: state.price_jump_threshold_pct,
+            open_interest_threshold: state.open_interest_threshold,
+            spread_threshold_pct: state.spread_threshold_pct,
+            max_hold_minutes: state.max_hold_minutes,
+            sim_order_quote_size: state.sim_order_quote_size,
+            sim_take_profit_pct: state.sim_take_profit_pct,
+            sim_take_profit_ratio_pct: state.sim_take_profit_ratio_pct,
+            sim_take_profit_pct_2: state.sim_take_profit_pct_2,
+            sim_take_profit_ratio_pct_2: state.sim_take_profit_ratio_pct_2,
+            sim_stop_loss_pct: state.sim_stop_loss_pct,
+            live_trading_enabled: state.live_trading_enabled,
+            live_trading_allow_opens: state.live_trading_allow_opens,
+            live_open_cooldown_seconds: state.live_open_cooldown_seconds,
+            live_max_order_quote_notional: state.live_max_order_quote_notional,
+            live_max_symbol_exposure_quote_notional: state.live_max_symbol_exposure_quote_notional,
+            gate_live_trading_configured: true,
+            lighter_live_trading_configured: true,
+            active_orders: activeOrders,
+            latency_metrics: {
+              queue_delay_us: { latest_us: 118, p99_us: 540, samples: 128 },
+              processing_us: { latest_us: 260, p99_us: 710, samples: 128 },
+              persist_us: { latest_us: 410, p99_us: 910, samples: 128 },
+              end_to_end_us: { latest_us: 920, p99_us: 1650, samples: 128 },
+              persistence_batch_size: { latest_us: 4, p99_us: 8, samples: 128 },
+              persistence_queue_depth: 0,
+            },
+            live_connections: liveConnections,
+            total_connections: connections.length,
+            market_count: markets.length,
+            last_message_age_ms: currentStreamControl.lighter || currentStreamControl.gate ? 240 : null,
+            last_exchange_timestamp_ms: currentStreamControl.lighter || currentStreamControl.gate ? Date.now() - 240 : null,
+            last_exchange_latency_ms: currentStreamControl.lighter || currentStreamControl.gate ? 42 : null,
+            avg_exchange_latency_ms: currentStreamControl.lighter || currentStreamControl.gate ? 36 : null,
+            max_exchange_latency_ms: currentStreamControl.lighter || currentStreamControl.gate ? 71 : null,
+            last_rest_sync_age_ms: 8000,
+            last_rest_sync_count: markets.length,
+            last_rest_sync_status: "ok",
+            connections,
+          },
+          markets,
+          signals,
+          orders,
+        };
+      }
+
+      function createMockPnl(range, exchangeFilter = "all", directionFilter = "all") {
+        const multiplier = range === "7d" ? 1.8 : range === "all" ? 2.7 : 1;
+        const now = Date.now();
+        const closedOrders = [
+          { closed_at_ms: now - 35 * 60000, exchange: "lighter", symbol: "BTC/USDC", direction: "bullish", quote_notional: 52.6, pnl: 16.2, return_pct: 3.08, hold_minutes: 11.4, exit_reason: "take_profit" },
+          { closed_at_ms: now - 82 * 60000, exchange: "gate", symbol: "SOL_USDT", direction: "bullish", quote_notional: 95.1, pnl: 12.8, return_pct: 1.34, hold_minutes: 24.0, exit_reason: "take_profit" },
+          { closed_at_ms: now - 160 * 60000, exchange: "lighter", symbol: "ETH/USDC", direction: "bearish", quote_notional: 88.7, pnl: -6.5, return_pct: -0.73, hold_minutes: 18.2, exit_reason: "timeout" },
+          { closed_at_ms: now - 240 * 60000, exchange: "gate", symbol: "DOGE_USDT", direction: "bullish", quote_notional: 101.4, pnl: 9.1, return_pct: 0.9, hold_minutes: 14.8, exit_reason: "take_profit" },
+          { closed_at_ms: now - 390 * 60000, exchange: "lighter", symbol: "ARB/USDC", direction: "bullish", quote_notional: 97.0, pnl: 7.8, return_pct: 0.8, hold_minutes: 22.6, exit_reason: "manual_close" },
+          { closed_at_ms: now - 520 * 60000, exchange: "gate", symbol: "ETH_USDT", direction: "bearish", quote_notional: 106.5, pnl: -10.9, return_pct: -1.02, hold_minutes: 37.5, exit_reason: "stop_loss" },
+        ].map((order) => ({
+          ...order,
+          quote_notional: Math.round(order.quote_notional * multiplier * 100) / 100,
+          pnl: Math.round(order.pnl * multiplier * 100) / 100,
+        }));
+        const openOrders = [
+          { opened_at_ms: now - 22 * 60000, exchange: "lighter", symbol: "BTC/USDC", direction: "bullish", quote_notional: 51.9, mark_price: 84612.4, pnl: 4.8, return_pct: 0.92 },
+          { opened_at_ms: now - 70 * 60000, exchange: "gate", symbol: "ETH_USDT", direction: "bullish", quote_notional: 93.8, mark_price: 4620.3, pnl: 3.2, return_pct: 0.34 },
+          { opened_at_ms: now - 145 * 60000, exchange: "lighter", symbol: "ARB/USDC", direction: "bullish", quote_notional: 97.0, mark_price: 1.952, pnl: 2.7, return_pct: 0.28 },
+          { opened_at_ms: now - 205 * 60000, exchange: "gate", symbol: "DOGE_USDT", direction: "bearish", quote_notional: 104.0, mark_price: 0.2015, pnl: -2.4, return_pct: -0.23 },
+        ].map((order) => ({
+          ...order,
+          quote_notional: Math.round(order.quote_notional * multiplier * 100) / 100,
+          pnl: Math.round(order.pnl * multiplier * 100) / 100,
+        }));
+
+        const filteredClosed = closedOrders.filter((order) => {
+          if (exchangeFilter !== "all" && order.exchange !== exchangeFilter) return false;
+          if (directionFilter !== "all" && order.direction !== directionFilter) return false;
+          return true;
+        });
+        const filteredOpen = openOrders.filter((order) => {
+          if (exchangeFilter !== "all" && order.exchange !== exchangeFilter) return false;
+          if (directionFilter !== "all" && order.direction !== directionFilter) return false;
+          return true;
+        });
+
+        const closedTrades = filteredClosed.length;
+        const wins = filteredClosed.filter((order) => order.pnl > 0).length;
+        const losses = filteredClosed.filter((order) => order.pnl < 0).length;
+        const netPnl = filteredClosed.reduce((sum, order) => sum + order.pnl, 0);
+        const avgPnl = closedTrades ? netPnl / closedTrades : 0;
+        const avgReturn = closedTrades
+          ? filteredClosed.reduce((sum, order) => sum + order.return_pct, 0) / closedTrades
+          : 0;
+        const avgHold = closedTrades
+          ? filteredClosed.reduce((sum, order) => sum + order.hold_minutes, 0) / closedTrades
+          : 0;
+        const openNetPnl = filteredOpen.reduce((sum, order) => sum + order.pnl, 0);
+        const openAvgReturn = filteredOpen.length
+          ? filteredOpen.reduce((sum, order) => sum + order.return_pct, 0) / filteredOpen.length
+          : 0;
+
+        const equityCurve = filteredClosed.length
+          ? filteredClosed
+              .slice()
+              .sort((left, right) => left.closed_at_ms - right.closed_at_ms)
+              .reduce((points, order) => {
+                const previous = points.length ? points[points.length - 1].equity : 0;
+                points.push({
+                  timestamp_ms: order.closed_at_ms,
+                  equity: Math.round((previous + order.pnl) * 100) / 100,
+                });
+                return points;
+              }, [])
+          : [];
+
+        const exchangeBreakdown = ["lighter", "gate"]
+          .map((exchange) => {
+            const rows = filteredClosed.filter((order) => order.exchange === exchange);
+            const tradeCount = rows.length;
+            const exchangeNet = rows.reduce((sum, order) => sum + order.pnl, 0);
+            return {
+              key: exchange,
+              trades: tradeCount,
+              wins: rows.filter((order) => order.pnl > 0).length,
+              losses: rows.filter((order) => order.pnl < 0).length,
+              win_rate_pct: tradeCount ? (rows.filter((order) => order.pnl > 0).length / tradeCount) * 100 : 0,
+              net_pnl: Math.round(exchangeNet * 100) / 100,
+              avg_pnl: tradeCount ? Math.round((exchangeNet / tradeCount) * 100) / 100 : 0,
+            };
+          })
+          .filter((row) => row.trades > 0);
+
+        const symbolBreakdown = [...new Set(filteredClosed.map((order) => order.symbol))]
+          .map((symbol) => {
+            const rows = filteredClosed.filter((order) => order.symbol === symbol);
+            const tradeCount = rows.length;
+            const symbolNet = rows.reduce((sum, order) => sum + order.pnl, 0);
+            return {
+              key: symbol,
+              trades: tradeCount,
+              wins: rows.filter((order) => order.pnl > 0).length,
+              losses: rows.filter((order) => order.pnl < 0).length,
+              win_rate_pct: tradeCount ? (rows.filter((order) => order.pnl > 0).length / tradeCount) * 100 : 0,
+              net_pnl: Math.round(symbolNet * 100) / 100,
+              avg_pnl: tradeCount ? Math.round((symbolNet / tradeCount) * 100) / 100 : 0,
+            };
+          })
+          .sort((left, right) => right.net_pnl - left.net_pnl);
+
+        return {
+          range,
+          exchange_filter: exchangeFilter,
+          direction_filter: directionFilter,
+          summary: {
+            net_pnl: Math.round(netPnl * 100) / 100,
+            gross_profit: filteredClosed.filter((order) => order.pnl > 0).reduce((sum, order) => sum + order.pnl, 0),
+            gross_loss: filteredClosed.filter((order) => order.pnl < 0).reduce((sum, order) => sum + order.pnl, 0),
+            closed_trades: closedTrades,
+            wins,
+            losses,
+            win_rate_pct: closedTrades ? (wins / closedTrades) * 100 : 0,
+            avg_pnl: Math.round(avgPnl * 100) / 100,
+            avg_return_pct: Math.round(avgReturn * 100) / 100,
+            avg_hold_minutes: Math.round(avgHold * 10) / 10,
+            max_drawdown: closedTrades ? Math.abs(Math.min(...equityCurve.map((point) => point.equity), 0)) : 0,
+            best_trade: closedTrades ? Math.max(...filteredClosed.map((order) => order.pnl)) : 0,
+            worst_trade: closedTrades ? Math.min(...filteredClosed.map((order) => order.pnl)) : 0,
+            max_win_streak: wins,
+            max_loss_streak: losses,
+          },
+          unrealized: {
+            net_pnl: Math.round(openNetPnl * 100) / 100,
+            open_orders: filteredOpen.length,
+            avg_return_pct: Math.round(openAvgReturn * 100) / 100,
+          },
+          equity_curve: equityCurve,
+          daily_pnl: Array.from({ length: 6 }, (_, index) => ({
+            day_start_ms: now - (5 - index) * 86400000,
+            pnl: Math.round((((index - 2) * 9) + netPnl / Math.max(closedTrades || 1, 1)) * 100) / 100,
+            trades: Math.max(0, Math.round(closedTrades / 6)),
+          })),
+          exchange_breakdown: exchangeBreakdown,
+          symbol_breakdown: symbolBreakdown,
+          recent_orders: filteredClosed.slice().sort((left, right) => right.closed_at_ms - left.closed_at_ms),
+          open_orders: filteredOpen.slice().sort((left, right) => right.opened_at_ms - left.opened_at_ms),
+        };
+      }
+
+      function fmtMs(value) {
+        return value == null ? "--" : `${value} ms`;
+      }
+
+      function fmtUs(value) {
+        if (value == null) return "--";
+        if (value < 1000) return `${value} us`;
+        return `${(value / 1000).toFixed(2)} ms`;
+      }
+
+      function fmtDuration(value) {
+        if (value == null) return "--";
+        if (value < 1000) return `${value} ms`;
+        const seconds = value / 1000;
+        if (seconds < 60) return `${seconds.toFixed(1)}s`;
+        const minutes = Math.floor(seconds / 60);
+        const remSeconds = Math.round(seconds % 60);
+        return `${minutes}m ${remSeconds}s`;
+      }
+
+      function fmtCurrency(value) {
+        if (value == null || !Number.isFinite(Number(value))) return "--";
+        const amount = Number(value);
+        const sign = amount > 0 ? "+" : "";
+        return `${sign}${amount.toFixed(2)}`;
+      }
+
+      function fmtPct(value) {
+        if (value == null || !Number.isFinite(Number(value))) return "--";
+        const amount = Number(value);
+        const sign = amount > 0 ? "+" : "";
+        return `${sign}${amount.toFixed(2)}%`;
+      }
+
+      function text(el, value) {
+        el.textContent = value ?? "--";
+      }
+
+      function renderEmptyState(icon, title, copy) {
+        return `
+          <div class="empty-state">
+            <div class="empty-state-icon" aria-hidden="true">${icon}</div>
+            <div class="empty-state-title">${title}</div>
+            <div class="empty-state-copy">${copy}</div>
+          </div>
+        `;
+      }
+
+      function pnlClass(value) {
+        const amount = Number(value);
+        if (!Number.isFinite(amount) || amount === 0) return "";
+        return amount > 0 ? "pnl-pos" : "pnl-neg";
+      }
+
+      function parseNumeric(value) {
+        const normalized = Number(String(value).replace(/,/g, ""));
+        return Number.isFinite(normalized) ? normalized : null;
+      }
+
+      function configuredLiveTradingExchanges() {
+        if (!latestSnapshot?.status) return [];
+        const exchanges = [];
+        if (latestSnapshot.status.gate_live_trading_configured) exchanges.push("Gate");
+        if (latestSnapshot.status.lighter_live_trading_configured) exchanges.push("Lighter");
+        return exchanges;
+      }
+
+      function liveStatusTagClass() {
+        if (!configuredLiveTradingExchanges().length) return "tag off";
+        if (!state.live_trading_enabled) return "tag";
+        return state.live_trading_allow_opens ? "tag armed" : "tag risk";
+      }
+
+      function renderLineChart(points) {
+        if (!points.length) {
+          return `<div class="chart-empty">${t('chart.noOrders') || "No closed orders in this range"}</div>`;
+        }
+
+        const width = 640;
+        const height = 220;
+        const padX = 18;
+        const padY = 16;
+        const values = points.map((point) => point.equity);
+        let min = Math.min(...values);
+        let max = Math.max(...values);
+        if (min === max) {
+          min -= 1;
+          max += 1;
+        }
+        const stepX = points.length > 1 ? (width - padX * 2) / (points.length - 1) : 0;
+        const scaleY = (value) =>
+          height - padY - ((value - min) / (max - min)) * (height - padY * 2);
+        const line = points
+          .map((point, index) => `${padX + index * stepX},${scaleY(point.equity).toFixed(2)}`)
+          .join(" ");
+        const zeroY = scaleY(0);
+
+        return `
+          <h3 class="chart-title">${t('chart.equityCurve') || "Equity Curve"}</h3>
+          <svg class="chart-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+            <line x1="${padX}" y1="${zeroY}" x2="${width - padX}" y2="${zeroY}" stroke="#d2c4ae" stroke-dasharray="4 4" />
+            <polyline fill="none" stroke="#0d7667" stroke-width="3" points="${line}" />
+            <text x="${padX}" y="14" fill="#6d665d" font-size="12">${fmtCurrency(max)}</text>
+            <text x="${padX}" y="${height - 4}" fill="#6d665d" font-size="12">${fmtCurrency(min)}</text>
+          </svg>
+        `;
+      }
+
+      function renderBarChart(points) {
+        if (!points.length) {
+          return `<div class="chart-empty">${t('chart.noDailyPnl') || "No daily PnL in this range"}</div>`;
+        }
+
+        const width = 640;
+        const height = 220;
+        const padX = 18;
+        const padY = 16;
+        const values = points.map((point) => point.pnl);
+        let min = Math.min(...values, 0);
+        let max = Math.max(...values, 0);
+        if (min === max) {
+          min -= 1;
+          max += 1;
+        }
+        const zeroY = height - padY - ((0 - min) / (max - min)) * (height - padY * 2);
+        const barWidth = Math.max(6, ((width - padX * 2) / points.length) * 0.72);
+        const gap = points.length > 0 ? (width - padX * 2) / points.length : 0;
+
+        const bars = points
+          .map((point, index) => {
+            const x = padX + index * gap + (gap - barWidth) / 2;
+            const y = height - padY - ((point.pnl - min) / (max - min)) * (height - padY * 2);
+            const top = Math.min(y, zeroY);
+            const barHeight = Math.max(2, Math.abs(zeroY - y));
+            const fill = point.pnl >= 0 ? "#0d7667" : "#a23f2d";
+            return `<rect x="${x.toFixed(2)}" y="${top.toFixed(2)}" width="${barWidth.toFixed(2)}" height="${barHeight.toFixed(2)}" rx="4" fill="${fill}" />`;
+          })
+          .join("");
+
+        return `
+          <h3 class="chart-title">${t('chart.dailyPnl') || "Daily PnL"}</h3>
+          <svg class="chart-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+            <line x1="${padX}" y1="${zeroY}" x2="${width - padX}" y2="${zeroY}" stroke="#d2c4ae" stroke-dasharray="4 4" />
+            ${bars}
+            <text x="${padX}" y="14" fill="#6d665d" font-size="12">${fmtCurrency(max)}</text>
+            <text x="${padX}" y="${height - 4}" fill="#6d665d" font-size="12">${fmtCurrency(min)}</text>
+          </svg>
+        `;
+      }
+
+      function readNumberInput(input, label) {
+        if (input.value === "") {
+          throw new Error(`${label} is required`);
+        }
+
+        const value = Number(input.value);
+        if (!Number.isFinite(value)) {
+          throw new Error(`${label} must be a valid number`);
+        }
+
+        return value;
+      }
+
+      function setView(view) {
+        if (view === currentView) return;
+        const currentSection = document.getElementById(`view-${currentView}`);
+        const nextSection = document.getElementById(`view-${view}`);
+        currentView = view;
+        document.querySelectorAll(".rail-button").forEach((button) => {
+          button.classList.toggle("active", button.dataset.view === view);
+        });
+        if (viewTransitionTimer) {
+          clearTimeout(viewTransitionTimer);
+          viewTransitionTimer = null;
+        }
+        if (currentSection && currentSection !== nextSection) {
+          currentSection.classList.remove("active");
+          currentSection.classList.add("leaving");
+          viewTransitionTimer = setTimeout(() => {
+            currentSection.classList.remove("leaving");
+            nextSection?.classList.add("active");
+          }, 170);
+        } else if (nextSection) {
+          nextSection.classList.add("active");
+        }
+        if (isMobileDockMode()) {
+          setDockOpen(false);
+        }
+        if (view === "performance" && Date.now() - lastPnlFetchAt > 1500) {
+          setTimeout(() => fetchPnl(), 170);
+        }
+      }
+
+      function setDockOpen(open) {
+        dockOpen = open;
+        controlDock.classList.toggle("is-open", open);
+        document.body.classList.toggle("dock-open", open);
+        const hidden = isMobileDockMode() && !open;
+        controlDock.hidden = hidden;
+        controlDock.setAttribute("aria-hidden", hidden ? "true" : "false");
+      }
+
+      function syncHeroBanner() {
+        const hero = document.querySelector(".hero");
+        hero?.classList.toggle("is-collapsed", heroBannerCollapsed);
+        if (heroBannerToggleButton) {
+          heroBannerToggleButton.textContent = heroBannerCollapsed ? (t('hero.expandBanner') || "Expand Banner") : (t('hero.collapseBanner') || "Collapse Banner");
+        }
+      }
+
+      function syncDockSections() {
+        document.querySelectorAll("[data-dock-block]").forEach((block) => {
+          const name = block.dataset.dockBlock;
+          const expanded = dockSections[name] !== false;
+          block.classList.toggle("is-collapsed", !expanded);
+          const toggle = block.querySelector("[data-dock-toggle]");
+          if (toggle) {
+            toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+            toggle.textContent = expanded ? "−" : "+";
+          }
+        });
+      }
+
+      function syncDockChrome() {
+        const configured = configuredLiveTradingExchanges();
+        const liveState = !configured.length
+          ? "Sim Only"
+          : state.live_trading_enabled
+            ? state.live_trading_allow_opens
+              ? "Live Armed"
+              : "Close Only"
+            : "Configured";
+        text(dockLiveCopy, currentStreamEnabled ? (t('dock.streamLive') || "Streams Live") : (t('dock.streamIdle') || "Streams Idle"));
+        dockLiveDot.classList.toggle("live", currentStreamEnabled);
+        text(dockStatusChip, liveState);
+        text(dockDirtyChip, windowDraftDirty || thresholdDraftDirty ? (t('dock.pendingEdits') || "Pending Edits") : (t('dock.synced') || "Synced"));
+        dockDirtyChip.classList.toggle("warning", windowDraftDirty || thresholdDraftDirty);
+      }
+
+      function syncWindowDraftState() {
+        windowDraftDirty = windowHoursInput.value !== String(state.window_hours);
+        syncDockChrome();
+      }
+
+      function syncThresholdDraftState() {
+        thresholdDraftDirty =
+          priceJumpThresholdInput.value !== String(state.price_jump_threshold_pct) ||
+          oiThresholdInput.value !== String(state.open_interest_threshold) ||
+          spreadThresholdInput.value !== String(state.spread_threshold_pct) ||
+          simOrderQuoteSizeInput.value !== String(state.sim_order_quote_size) ||
+          maxHoldMinutesInput.value !== String(state.max_hold_minutes) ||
+          simStopLossPctInput.value !== String(state.sim_stop_loss_pct) ||
+          liveOpenCooldownSecondsInput.value !== String(state.live_open_cooldown_seconds) ||
+          liveTradingAllowOpensInput.value !== String(state.live_trading_allow_opens) ||
+          liveMaxOrderQuoteNotionalInput.value !== String(state.live_max_order_quote_notional) ||
+          liveMaxSymbolExposureQuoteNotionalInput.value !== String(state.live_max_symbol_exposure_quote_notional) ||
+          simTakeProfitPctInput.value !== String(state.sim_take_profit_pct) ||
+          simTakeProfitRatioPctInput.value !== String(state.sim_take_profit_ratio_pct) ||
+          simTakeProfitPct2Input.value !== String(state.sim_take_profit_pct_2) ||
+          simTakeProfitRatioPct2Input.value !== String(state.sim_take_profit_ratio_pct_2);
+        syncDockChrome();
+      }
+
+      function syncStreamButtons() {
+        lighterStreamButton.disabled = updatingStream;
+        lighterStreamButton.textContent = currentStreamControl.lighter ? (t('stream.stop') || "Stop") : (t('stream.start') || "Start");
+        lighterStreamButton.classList.toggle("stop", currentStreamControl.lighter);
+        gateStreamButton.disabled = updatingStream;
+        gateStreamButton.textContent = currentStreamControl.gate ? (t('stream.stop') || "Stop") : (t('stream.start') || "Start");
+        gateStreamButton.classList.toggle("stop", currentStreamControl.gate);
+      }
+
+      function syncWindowControls() {
+        const disabled = currentStreamEnabled || updatingWindow;
+        windowHoursInput.disabled = disabled;
+        windowSaveButton.disabled = disabled || !windowDraftDirty;
+      }
+
+      function syncThresholdControls() {
+        const disabled = updatingThresholds;
+        priceJumpThresholdInput.disabled = disabled;
+        oiThresholdInput.disabled = disabled;
+        spreadThresholdInput.disabled = disabled;
+        simOrderQuoteSizeInput.disabled = disabled;
+        maxHoldMinutesInput.disabled = disabled;
+        simStopLossPctInput.disabled = disabled;
+        liveOpenCooldownSecondsInput.disabled = disabled;
+        liveTradingAllowOpensInput.disabled = disabled;
+        liveMaxOrderQuoteNotionalInput.disabled = disabled;
+        liveMaxSymbolExposureQuoteNotionalInput.disabled = disabled;
+        simTakeProfitPctInput.disabled = disabled;
+        simTakeProfitRatioPctInput.disabled = disabled;
+        simTakeProfitPct2Input.disabled = disabled;
+        simTakeProfitRatioPct2Input.disabled = disabled;
+        thresholdSaveButton.disabled = disabled || !thresholdDraftDirty;
+      }
+
+      function syncLiveTradingControls() {
+        const credentialsConfigured = configuredLiveTradingExchanges().length > 0;
+        const disabled = updatingLiveTrading || !credentialsConfigured;
+        liveTradingToggleButton.disabled = disabled;
+        liveTradingToggleButton.textContent = state.live_trading_enabled ? (t('btn.disable') || "Disable") : (t('btn.enable') || "Enable");
+      }
+
+      function renderSignalTape(data) {
+        const items = [...data.signals]
+          .sort((a, b) => b.created_at_ms - a.created_at_ms)
+          .slice(0, 12);
+
+        signalCountText.textContent = t('signals.count', data.signals.length) || `${data.signals.length} recent signals`;
+        signalTape.innerHTML = items.length
+          ? items
+              .map((signal) => {
+                const directionTag = signal.direction === "bearish" ? "bearish" : "bullish";
+                const directionLabel = signal.direction === "bearish" ? "Bearish" : "Bullish";
+                return `
+                  <article class="feed-item">
+                    <div class="row-top">
+                      <div class="symbol-line">
+                        <div class="symbol-name">${signal.symbol}</div>
+                        <span class="tag ${directionTag}">${directionLabel}</span>
+                        <span class="tag">${signal.exchange}</span>
+                      </div>
+                      <div class="muted">${new Date(signal.created_at_ms).toLocaleString()}</div>
+                    </div>
+                    <div class="feed-meta">
+                      move ${signal.move_pct.toFixed(2)}% / threshold ${signal.price_jump_threshold_pct.toFixed(2)}% / time ${fmtDuration(signal.time_to_threshold_ms)}
+                    </div>
+                    <div class="feed-meta">
+                      prev ${signal.prev_last_trade_price} -> last ${signal.last_trade_price} / oi ${signal.open_interest} / spread cap ${signal.spread_threshold_pct.toFixed(2)}%
+                    </div>
+                  </article>
+                `;
+              })
+              .join("")
+          : renderEmptyState("~", t('signals.emptyTitle') || "No signals yet", t('signals.emptyCopy') || "Start one or both exchange feeds to populate the tape.");
+      }
+
+      function renderConnections(data) {
+        connectionList.innerHTML = data.status.connections.length
+          ? data.status.connections
+              .map(
+                (item) => `
+                  <article class="connection-item">
+                    <div class="row-top">
+                      <strong>${item.name}</strong>
+                      <span class="tag ${item.status.includes("live") ? "live" : item.status === "stopped" ? "off" : ""}">
+                        ${item.status}
+                      </span>
+                    </div>
+                  </article>
+                `
+              )
+              .join("")
+          : `<article class="connection-item"><div class="feed-meta">${t('connection.empty') || "No connection state reported yet."}</div></article>`;
+      }
+
+      function renderMarketRadar(data) {
+        const topMarkets = [...data.markets]
+          .sort((left, right) => (parseNumeric(right.open_interest) || -Infinity) - (parseNumeric(left.open_interest) || -Infinity))
+          .slice(0, 8);
+
+        radarCountText.textContent = t('radar.count', topMarkets.length) || `${topMarkets.length} highest open-interest markets`;
+        marketRadar.innerHTML = topMarkets.length
+          ? topMarkets
+              .map(
+                (market) => `
+                  <article class="radar-row">
+                    <div class="row-top">
+                      <div class="symbol-line">
+                        <div class="symbol-name">${market.symbol}</div>
+                        <span class="tag">${market.exchange}</span>
+                      </div>
+                      <strong>${market.open_interest}</strong>
+                    </div>
+                    <div class="radar-meta">
+                      last ${market.last_trade_price} / bid ${market.best_bid_price} / ask ${market.best_ask_price} / funding ${market.current_funding_rate}
+                    </div>
+                  </article>
+                `
+              )
+              .join("")
+          : `<article class="radar-row"><div class="radar-meta">${t('radar.empty') || "No markets available yet."}</div></article>`;
+      }
+
+      function renderOverview(data) {
+        renderSignalTape(data);
+        renderConnections(data);
+        renderMarketRadar(data);
+
+        const marketsByOi = [...data.markets].sort(
+          (left, right) => (parseNumeric(right.open_interest) || -Infinity) - (parseNumeric(left.open_interest) || -Infinity)
+        );
+        const topMarket = marketsByOi[0];
+        const configured = configuredLiveTradingExchanges();
+        const overviewState = !configured.length
+          ? "Sim Only"
+          : state.live_trading_enabled
+            ? state.live_trading_allow_opens
+              ? "Armed"
+              : "Close Only"
+            : "Configured";
+
+        text(summaryConnections, `${data.status.live_connections}/${data.status.total_connections}`);
+        text(summaryConnectionsMeta, `${data.status.connections.length} connection states tracked`);
+        text(summaryLatency, fmtMs(data.status.last_exchange_latency_ms));
+        text(summaryLatencyMeta, `avg ${fmtMs(data.status.avg_exchange_latency_ms)} / max ${fmtMs(data.status.max_exchange_latency_ms)}`);
+        text(summaryMessageAge, fmtMs(data.status.last_message_age_ms));
+        text(summaryMessageMeta, data.status.last_exchange_timestamp_ms ? `exchange ts ${data.status.last_exchange_timestamp_ms}` : "exchange timestamp unavailable");
+        text(summaryLiveState, overviewState);
+        text(summaryLiveMeta, configured.length ? `${configured.join(" + ")} credentials loaded` : "no live credentials");
+
+        text(
+          focusLiveTitle,
+          !configured.length
+            ? "Standby"
+            : state.live_trading_enabled
+              ? state.live_trading_allow_opens
+                ? "Armed"
+                : "Close Only"
+              : "Configured"
+        );
+        text(
+          focusLiveBody,
+          !configured.length
+            ? "The engine is running in simulation mode only because no backend live-trading credentials were detected."
+            : state.live_trading_enabled
+              ? state.live_trading_allow_opens
+                ? `${configured.join(" + ")} signals can submit real market orders asynchronously.`
+                : `${configured.join(" + ")} closes are still allowed, but new opens are blocked.`
+              : `${configured.join(" + ")} credentials are loaded, but live execution is currently disabled.`
+        );
+        text(focusMarketTitle, topMarket ? topMarket.symbol : "--");
+        text(
+          focusMarketBody,
+          topMarket
+            ? `${topMarket.exchange} / oi ${topMarket.open_interest} / last ${topMarket.last_trade_price} / funding ${topMarket.current_funding_rate}`
+            : "Waiting for an active market universe."
+        );
+      }
+
+      function renderExecution(data) {
+        const orders = [...data.orders].sort((a, b) => b.opened_at_ms - a.opened_at_ms);
+        orderCountText.textContent = t('orders.count', orders.length) || `${orders.length} tracked orders`;
+        orderStack.innerHTML = orders.length
+          ? orders
+              .slice(0, 18)
+              .map((order) => {
+                const directionTag = order.direction === "bearish" ? "bearish" : "bullish";
+                const statusTag = order.status === "closed" ? "closed" : "live";
+                const statusLabel = order.status === "closed" ? "Closed" : "Open";
+                const closeText = order.closed_at_ms ? ` / closed ${new Date(order.closed_at_ms).toLocaleString()}` : "";
+                const exitText = order.exit_price ? ` / exit ${order.exit_price}${order.exit_reason ? ` (${order.exit_reason})` : ""}` : "";
+                return `
+                  <article class="order-item">
+                    <div class="row-top">
+                      <div class="symbol-line">
+                        <div class="symbol-name">${order.symbol}</div>
+                        <span class="tag ${directionTag}">${order.direction}</span>
+                        <span class="tag ${statusTag}">${statusLabel}</span>
+                        <span class="tag">${order.exchange}</span>
+                      </div>
+                      <div class="muted">${new Date(order.opened_at_ms).toLocaleString()}${closeText}</div>
+                    </div>
+                    <div class="order-meta">
+                      qty ${order.quantity_base} / entry ${order.entry_price} / tp ${order.take_profit_price} / sl ${order.stop_loss_price}
+                    </div>
+                    <div class="order-meta">
+                      quote ${fmtCurrency(order.quote_notional)}${exitText}
+                    </div>
+                  </article>
+                `;
+              })
+              .join("")
+          : renderEmptyState("#", t('orders.emptyTitle') || "No tracked orders", t('orders.emptyCopy') || "Orders will appear here once simulation or live execution starts placing positions.");
+
+        executionOpenTag.className = `tag ${state.live_trading_allow_opens ? "good" : "risk"}`;
+        text(executionOpenTag, state.live_trading_allow_opens ? "Open Enabled" : "Close Only");
+        text(
+          executionOpenCopy,
+          state.live_trading_allow_opens
+            ? "New live opens can be submitted when the global live toggle is armed."
+            : "New live opens are blocked even if live execution is armed."
+        );
+        executionBudgetTag.className = `tag ${state.live_max_order_quote_notional > 0 || state.live_max_symbol_exposure_quote_notional > 0 ? "risk" : ""}`;
+        text(
+          executionBudgetTag,
+          state.live_max_order_quote_notional > 0 || state.live_max_symbol_exposure_quote_notional > 0 ? "Limited" : "Open"
+        );
+        text(
+          executionBudgetCopy,
+          `per-order ${state.live_max_order_quote_notional || "disabled"} / per-symbol ${state.live_max_symbol_exposure_quote_notional || "disabled"} / cooldown ${state.live_open_cooldown_seconds || "disabled"}s`
+        );
+        text(
+          executionScaleCopy,
+          `TP1 ${state.sim_take_profit_pct}% x ${state.sim_take_profit_ratio_pct}% / TP2 ${state.sim_take_profit_pct_2}% x ${state.sim_take_profit_ratio_pct_2}%`
+        );
+        text(
+          executionStopCopy,
+          `max hold ${state.max_hold_minutes || "disabled"}m / stop loss ${state.sim_stop_loss_pct || "disabled"}%`
+        );
+      }
+
+      function renderPnl(data) {
+        if (!data) return;
+
+        currentPnlRange = data.range || currentPnlRange;
+        currentPnlExchange = data.exchange_filter || "all";
+        currentPnlDirection = data.direction_filter || "all";
+        pnlRangeFilter.value = currentPnlRange;
+        pnlExchangeFilter.value = currentPnlExchange;
+        pnlDirectionFilter.value = currentPnlDirection;
+
+        pnlNet.textContent = fmtCurrency(data.summary.net_pnl);
+        pnlNet.className = `value ${pnlClass(data.summary.net_pnl)}`.trim();
+        pnlNetMeta.textContent = `${data.summary.closed_trades} trades / best ${fmtCurrency(data.summary.best_trade)} / worst ${fmtCurrency(data.summary.worst_trade)}`;
+
+        pnlWinRate.textContent = fmtPct(data.summary.win_rate_pct);
+        pnlWinRate.className = `value ${pnlClass(data.summary.win_rate_pct - 50)}`.trim();
+        const hstatPnl = document.getElementById("hstat-pnl");
+        const hstatWinrate = document.getElementById("hstat-winrate");
+        if (hstatPnl) {
+          hstatPnl.textContent = fmtCurrency(data.summary.net_pnl);
+          hstatPnl.className = `hero-stat-value ${pnlClass(data.summary.net_pnl)}`.trim();
+        }
+        if (hstatWinrate) {
+          hstatWinrate.textContent = fmtPct(data.summary.win_rate_pct);
+          hstatWinrate.className = `hero-stat-value ${pnlClass(data.summary.win_rate_pct - 50)}`.trim();
+        }
+        pnlWinMeta.textContent = `wins ${data.summary.wins} / losses ${data.summary.losses} / streak ${data.summary.max_win_streak}-${data.summary.max_loss_streak}`;
+
+        pnlAvg.textContent = fmtCurrency(data.summary.avg_pnl);
+        pnlAvg.className = `value ${pnlClass(data.summary.avg_pnl)}`.trim();
+        pnlAvgMeta.textContent = `avg return ${fmtPct(data.summary.avg_return_pct)} / avg hold ${Number(data.summary.avg_hold_minutes || 0).toFixed(1)}m`;
+
+        pnlOpen.textContent = fmtCurrency(data.unrealized.net_pnl);
+        pnlOpen.className = `value ${pnlClass(data.unrealized.net_pnl)}`.trim();
+        pnlOpenMeta.textContent = `${data.unrealized.open_orders} open / avg return ${fmtPct(data.unrealized.avg_return_pct)}`;
+
+        equityChart.innerHTML = renderLineChart(data.equity_curve);
+        dailyPnlChart.innerHTML = renderBarChart(data.daily_pnl);
+
+        const exchangeRows = data.exchange_breakdown.slice(0, 4).map(
+          (row) => `
+            <div class="breakdown-row">
+              <div class="row-top">
+                <strong>${row.key}</strong>
+                <span class="tag ${pnlClass(row.net_pnl) === "pnl-pos" ? "good" : pnlClass(row.net_pnl) === "pnl-neg" ? "risk" : ""}">
+                  ${fmtCurrency(row.net_pnl)}
+                </span>
+              </div>
+              <div class="feed-meta">trades ${row.trades} / win ${fmtPct(row.win_rate_pct)} / avg ${fmtCurrency(row.avg_pnl)}</div>
+            </div>
+          `
+        );
+        const symbolRows = data.symbol_breakdown.slice(0, 4).map(
+          (row) => `
+            <div class="breakdown-row">
+              <div class="row-top">
+                <strong>${row.key}</strong>
+                <span class="tag ${pnlClass(row.net_pnl) === "pnl-pos" ? "good" : pnlClass(row.net_pnl) === "pnl-neg" ? "risk" : ""}">
+                  ${fmtCurrency(row.net_pnl)}
+                </span>
+              </div>
+              <div class="feed-meta">trades ${row.trades} / win ${fmtPct(row.win_rate_pct)} / avg ${fmtCurrency(row.avg_pnl)}</div>
+            </div>
+          `
+        );
+
+        pnlBreakdowns.innerHTML = `
+          <div class="dock-title">${t('pnl.byExchange') || "By Exchange"}</div>
+          ${exchangeRows.length ? exchangeRows.join("") : `<div class="breakdown-row"><div class="feed-meta">No data</div></div>`}
+          <div class="dock-title" style="margin-top: 8px;">${t('pnl.topSymbols') || "Top Symbols"}</div>
+          ${symbolRows.length ? symbolRows.join("") : `<div class="breakdown-row"><div class="feed-meta">No data</div></div>`}
+        `;
+
+        pnlRecentNote.textContent = t('pnl.recentNote', data.recent_orders.length) || `${data.recent_orders.length} closed orders in current filter`;
+        pnlRecentList.innerHTML = data.recent_orders.length
+          ? data.recent_orders
+              .slice(0, 8)
+              .map(
+                (order) => `
+                  <article class="ledger-item">
+                    <div class="row-top">
+                      <div class="symbol-line">
+                        <div class="symbol-name">${order.symbol}</div>
+                        <span class="tag ${order.direction === "bearish" ? "bearish" : "bullish"}">${order.direction}</span>
+                        <span class="tag">${order.exchange}</span>
+                      </div>
+                      <strong class="${pnlClass(order.pnl)}">${fmtCurrency(order.pnl)}</strong>
+                    </div>
+                    <div class="ledger-copy">
+                      closed ${new Date(order.closed_at_ms).toLocaleString()} / return ${fmtPct(order.return_pct)} / hold ${Number(order.hold_minutes || 0).toFixed(1)}m
+                    </div>
+                    <div class="ledger-copy">
+                      quote ${fmtCurrency(order.quote_notional)} / exit ${order.exit_reason}
+                    </div>
+                  </article>
+                `
+              )
+              .join("")
+          : renderEmptyState("R", t('pnl.emptyTitle') || "No realized exits", t('pnl.emptyCopy') || "The current PnL filter returned no closed trades.");
+
+        pnlOpenNote.textContent = t('pnl.openNote', data.open_orders.length) || `${data.open_orders.length} open orders in current filter`;
+        pnlOpenList.innerHTML = data.open_orders.length
+          ? data.open_orders
+              .slice(0, 8)
+              .map(
+                (order) => `
+                  <article class="ledger-item">
+                    <div class="row-top">
+                      <div class="symbol-line">
+                        <div class="symbol-name">${order.symbol}</div>
+                        <span class="tag ${order.direction === "bearish" ? "bearish" : "bullish"}">${order.direction}</span>
+                        <span class="tag live">Open</span>
+                        <span class="tag">${order.exchange}</span>
+                      </div>
+                      <strong class="${pnlClass(order.pnl)}">${fmtCurrency(order.pnl)}</strong>
+                    </div>
+                    <div class="ledger-copy">
+                      opened ${new Date(order.opened_at_ms).toLocaleString()} / mark ${order.mark_price} / return ${fmtPct(order.return_pct)}
+                    </div>
+                    <div class="ledger-copy">
+                      quote ${fmtCurrency(order.quote_notional)}
+                    </div>
+                  </article>
+                `
+              )
+              .join("")
+          : renderEmptyState("O", t('pnl.openEmptyTitle') || "No open exposure", t('pnl.openEmptyCopy') || "No open positions matched the current exchange and direction filters.");
+      }
+
+      function renderAtlas(data) {
+        const filteredMarkets = data.markets.filter((market) => {
+          if (currentMarketExchange !== "all" && market.exchange !== currentMarketExchange) {
+            return false;
+          }
+          if (currentMarketSearch && !market.symbol.toLowerCase().includes(currentMarketSearch)) {
+            return false;
+          }
+          return true;
+        });
+
+        marketBody.innerHTML = filteredMarkets.length
+          ? filteredMarkets
+              .map(
+                (market) => `
+                  <tr class="market-main-row">
+                    <td>
+                      <div class="market-cell">
+                        <div class="market-primary">
+                          <span class="market-symbol">${market.symbol}</span>
+                          <span class="tag">${market.exchange}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>${market.last_trade_price}</td>
+                    <td>${market.best_bid_price} / ${market.best_ask_price}</td>
+                    <td>${market.current_funding_rate}</td>
+                    <td>${market.open_interest}</td>
+                  </tr>
+                  <tr class="market-detail-row">
+                    <td colspan="5">
+                      <div class="market-secondary">
+                        <span><strong>Window</strong> ${market.window_low_price} / ${market.window_high_price}</span>
+                        <span><strong>Min Base</strong> ${market.min_base_amount}</span>
+                        <span><strong>Quote Cap</strong> ${market.order_quote_limit}</span>
+                      </div>
+                    </td>
+                  </tr>
+                `
+              )
+              .join("")
+          : `<tr><td colspan="5" class="muted">${t('atlas.noFilter') || "No markets matched the current filters."}</td></tr>`;
+      }
+
+      function syncDockNarrative() {
+        const configured = configuredLiveTradingExchanges();
+        text(
+          dockNote,
+          !configured.length
+            ? (t('dock.simNarrative') || "The prototype keeps controls visible, but the backend is still in simulation mode because no live-trading credentials were found.")
+            : state.live_trading_enabled
+              ? state.live_trading_allow_opens
+                ? (t('dock.liveArmedNarrative', configured.join(" + ")) || `${configured.join(" + ")} live execution is armed. Tune risk budgets here before leaving the control deck.`)
+                : (t('dock.closeOnlyNarrative', configured.join(" + ")) || `${configured.join(" + ")} live closes remain active, but new opens are intentionally blocked.`)
+              : (t('dock.configuredNarrative', configured.join(" + ")) || `${configured.join(" + ")} credentials are loaded. The desk remains in simulation until you arm live execution.`)
+        );
+
+        thresholdHint.textContent = thresholdDraftDirty
+          ? `Unsaved thresholds. Jump ${priceJumpThresholdInput.value || "--"} / OI ${oiThresholdInput.value || "--"} / Spread ${spreadThresholdInput.value || "--"} / Order ${simOrderQuoteSizeInput.value || "--"} / Hold ${maxHoldMinutesInput.value || "--"} / SL ${simStopLossPctInput.value || "--"}`
+          : `Jump ${state.price_jump_threshold_pct}% / OI ${state.open_interest_threshold} / Spread ${state.spread_threshold_pct}% / Order ${state.sim_order_quote_size} / Hold ${state.max_hold_minutes || "disabled"} / SL ${state.sim_stop_loss_pct || "disabled"} / TP1 ${state.sim_take_profit_pct}% x ${state.sim_take_profit_ratio_pct}% / TP2 ${state.sim_take_profit_pct_2}% x ${state.sim_take_profit_ratio_pct_2}%`;
+      }
+
+      function renderHeader(data) {
+        stamp.textContent = `Refreshed ${new Date(data.generated_at_ms).toLocaleTimeString()}`;
+
+        const configured = configuredLiveTradingExchanges();
+        const liveText = !configured.length
+          ? "Simulation Only"
+          : state.live_trading_enabled
+            ? state.live_trading_allow_opens
+              ? "Live Armed"
+              : "Close Only"
+            : "Configured";
+        heroLiveTag.className = liveStatusTagClass();
+        text(heroLiveTag, liveText);
+        text(
+          heroUtilityCopy,
+          `${liveText} / ${data.status.live_connections} of ${data.status.total_connections} adapters live / window ${Number(state.window_hours).toFixed(2)}h / jump ${state.price_jump_threshold_pct}% / OI ${state.open_interest_threshold} / refresh ${new Date(data.generated_at_ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+        );
+
+        text(heroStreamValue, currentStreamEnabled ? (t('hero.feedsRunning') || "Feeds running") : (t('hero.allStopped') || "All stopped"));
+        text(
+          heroStreamMeta,
+          currentStreamEnabled
+            ? `lighter ${currentStreamControl.lighter ? "on" : "off"} / gate ${currentStreamControl.gate ? "on" : "off"}`
+            : (t('hero.startHint') || "Start one or both exchange streams from the control deck")
+        );
+        text(heroPipelineValue, fmtUs(data.status.latency_metrics.end_to_end_us.latest_us));
+        text(
+          heroPipelineMeta,
+          `queue p99 ${fmtUs(data.status.latency_metrics.queue_delay_us.p99_us)} / process p99 ${fmtUs(data.status.latency_metrics.processing_us.p99_us)} / persist p99 ${fmtUs(data.status.latency_metrics.persist_us.p99_us)}`
+        );
+        text(heroOrdersValue, `${data.status.active_orders}`);
+        text(heroOrdersMeta, `${data.orders.length} tracked order records`);
+        text(heroMarketsValue, `${data.status.market_count}`);
+        text(heroMarketsMeta, `${data.status.live_connections}/${data.status.total_connections} live connections`);
+        text(heroRestValue, data.status.last_rest_sync_status);
+        text(heroRestMeta, `rows ${data.status.last_rest_sync_count} / age ${fmtMs(data.status.last_rest_sync_age_ms)}`);
+
+        // hero status card
+        const hstatLatency = document.getElementById("hstat-latency");
+        const hstatSignals = document.getElementById("hstat-signals");
+        const hstatOrders = document.getElementById("hstat-orders");
+        const hstatMarkets = document.getElementById("hstat-markets");
+        if (hstatLatency) text(hstatLatency, fmtUs(data.status.latency_metrics.end_to_end_us.latest_us));
+        if (hstatSignals) text(hstatSignals, `${(data.signals || []).length}`);
+        if (hstatOrders) text(hstatOrders, `${data.status.active_orders}`);
+        if (hstatMarkets) text(hstatMarkets, `${data.status.market_count}`);
+      }
+
+      function renderControlDeck(data) {
+        if (DEMO_MODE) {
+          stamp.textContent = `${t('stamp.mock') || "Mock mode"} / ${new Date(data.generated_at_ms).toLocaleTimeString()}`;
+        }
+        text(lighterStreamState, currentStreamControl.lighter ? (t('stream.lighterLive') || "Lighter live") : (t('stream.lighterStopped') || "Lighter stopped"));
+        text(
+          lighterStreamHint,
+          currentStreamControl.lighter ? (t('stream.lighterLiveHint') || "Market stats, metadata, and tickers are active.") : (t('stream.lighterStoppedHint') || "No Lighter upstream traffic.")
+        );
+        text(gateStreamState, currentStreamControl.gate ? (t('stream.gateLive') || "Gate live") : (t('stream.gateStopped') || "Gate stopped"));
+        text(
+          gateStreamHint,
+          currentStreamControl.gate ? (t('stream.gateLiveHint') || "Book ticker and metadata feeds are active.") : (t('stream.gateStoppedHint') || "No Gate upstream traffic.")
+        );
+
+        const configured = configuredLiveTradingExchanges();
+        text(
+          liveTradingStatus,
+          !configured.length
+            ? (t('live.locked') || "Locked")
+            : state.live_trading_enabled
+              ? state.live_trading_allow_opens
+                ? (t('live.armed') || "Armed")
+                : (t('live.closeOnly') || "Close Only")
+              : (t('live.disabled') || "Disabled")
+        );
+        text(
+          liveTradingHint,
+          !configured.length
+            ? (t('live.noCredentials') || "Set backend credentials and restart the service.")
+            : state.live_trading_enabled
+              ? state.live_trading_allow_opens
+                ? `${configured.join(" + ")} signals can submit real market orders.`
+                : `${configured.join(" + ")} closes remain live while new opens are blocked.`
+              : `${configured.join(" + ")} credentials are present, but live execution is off.`
+        );
+
+        syncStreamButtons();
+        syncWindowControls();
+        syncThresholdControls();
+        syncLiveTradingControls();
+        syncDockNarrative();
+        syncDockChrome();
+      }
+
+      function syncInputsFromState() {
+        if (!windowDraftDirty && !updatingWindow) {
+          windowHoursInput.value = String(state.window_hours);
+        }
+
+        if (!thresholdDraftDirty && !updatingThresholds) {
+          priceJumpThresholdInput.value = String(state.price_jump_threshold_pct);
+          oiThresholdInput.value = String(state.open_interest_threshold);
+          spreadThresholdInput.value = String(state.spread_threshold_pct);
+          simOrderQuoteSizeInput.value = String(state.sim_order_quote_size);
+          maxHoldMinutesInput.value = String(state.max_hold_minutes);
+          simStopLossPctInput.value = String(state.sim_stop_loss_pct);
+          liveOpenCooldownSecondsInput.value = String(state.live_open_cooldown_seconds);
+          liveTradingAllowOpensInput.value = String(state.live_trading_allow_opens);
+          liveMaxOrderQuoteNotionalInput.value = String(state.live_max_order_quote_notional);
+          liveMaxSymbolExposureQuoteNotionalInput.value = String(state.live_max_symbol_exposure_quote_notional);
+          simTakeProfitPctInput.value = String(state.sim_take_profit_pct);
+          simTakeProfitRatioPctInput.value = String(state.sim_take_profit_ratio_pct);
+          simTakeProfitPct2Input.value = String(state.sim_take_profit_pct_2);
+          simTakeProfitRatioPct2Input.value = String(state.sim_take_profit_ratio_pct_2);
+        }
+      }
+
+      function render(snapshot) {
+        latestSnapshot = snapshot;
+        currentStreamEnabled = snapshot.status.stream_enabled;
+        currentStreamControl = snapshot.status.stream_control;
+        state.window_hours = snapshot.status.window_hours;
+        state.price_jump_threshold_pct = snapshot.status.price_jump_threshold_pct;
+        state.open_interest_threshold = snapshot.status.open_interest_threshold;
+        state.spread_threshold_pct = snapshot.status.spread_threshold_pct;
+        state.max_hold_minutes = snapshot.status.max_hold_minutes;
+        state.sim_order_quote_size = snapshot.status.sim_order_quote_size;
+        state.sim_take_profit_pct = snapshot.status.sim_take_profit_pct;
+        state.sim_take_profit_ratio_pct = snapshot.status.sim_take_profit_ratio_pct;
+        state.sim_take_profit_pct_2 = snapshot.status.sim_take_profit_pct_2;
+        state.sim_take_profit_ratio_pct_2 = snapshot.status.sim_take_profit_ratio_pct_2;
+        state.sim_stop_loss_pct = snapshot.status.sim_stop_loss_pct;
+        state.live_trading_enabled = snapshot.status.live_trading_enabled;
+        state.live_trading_allow_opens = snapshot.status.live_trading_allow_opens;
+        state.live_open_cooldown_seconds = snapshot.status.live_open_cooldown_seconds;
+        state.live_max_order_quote_notional = snapshot.status.live_max_order_quote_notional;
+        state.live_max_symbol_exposure_quote_notional = snapshot.status.live_max_symbol_exposure_quote_notional;
+
+        syncInputsFromState();
+        renderHeader(snapshot);
+        renderOverview(snapshot);
+        renderExecution(snapshot);
+        renderAtlas(snapshot);
+        renderControlDeck(snapshot);
+      }
+
+      async function refresh() {
+        if (DEMO_MODE) {
+          const data = createMockSnapshot();
+          render(data);
+          if (currentView === "performance" && Date.now() - lastPnlFetchAt > 2000) {
+            await fetchPnl();
+          }
+          return;
+        }
+        try {
+          const res = await fetch("/api/snapshot", { cache: "no-store" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          render(data);
+          if (currentView === "performance" && Date.now() - lastPnlFetchAt > 2000) {
+            await fetchPnl();
+          }
+        } catch (error) {
+          stamp.textContent = `Refresh failed: ${error.message}`;
+        }
+      }
+
+      async function fetchPnl() {
+        if (DEMO_MODE) {
+          latestPnl = createMockPnl(currentPnlRange, currentPnlExchange, currentPnlDirection);
+          lastPnlFetchAt = Date.now();
+          renderPnl(latestPnl);
+          return;
+        }
+        try {
+          const query = new URLSearchParams({
+            range: currentPnlRange,
+            exchange: currentPnlExchange,
+            direction: currentPnlDirection,
+          });
+          const res = await fetch(`/api/pnl?${query.toString()}`, { cache: "no-store" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          latestPnl = await res.json();
+          lastPnlFetchAt = Date.now();
+          renderPnl(latestPnl);
+        } catch (error) {
+          stamp.textContent = `PnL failed: ${error.message}`;
+        }
+      }
+
+      async function setStreamEnabled(exchange, enabled) {
+        if (DEMO_MODE) {
+          updatingStream = true;
+          syncStreamButtons();
+          currentStreamControl = { ...currentStreamControl, [exchange]: enabled };
+          currentStreamEnabled = currentStreamControl.lighter || currentStreamControl.gate;
+          updatingStream = false;
+          await refresh();
+          return;
+        }
+        updatingStream = true;
+        syncStreamButtons();
+        try {
+          const res = await fetch("/api/stream", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ exchange, enabled }),
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          await refresh();
+        } catch (error) {
+          stamp.textContent = `Control failed: ${error.message}`;
+        } finally {
+          updatingStream = false;
+          syncStreamButtons();
+        }
+      }
+
+      async function saveWindowHours() {
+        if (DEMO_MODE) {
+          updatingWindow = true;
+          syncWindowControls();
+          try {
+            state.window_hours = readNumberInput(windowHoursInput, "Window hours");
+            windowDraftDirty = false;
+            await refresh();
+          } catch (error) {
+            stamp.textContent = `Window update failed: ${error.message}`;
+          } finally {
+            updatingWindow = false;
+            syncWindowControls();
+            syncDockNarrative();
+          }
+          return;
+        }
+        updatingWindow = true;
+        syncWindowControls();
+        try {
+          const hours = readNumberInput(windowHoursInput, "Window hours");
+          const res = await fetch("/api/config", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ window_hours: hours }),
+          });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+            throw new Error(body.error || `HTTP ${res.status}`);
+          }
+          windowDraftDirty = false;
+          await refresh();
+        } catch (error) {
+          stamp.textContent = `Window update failed: ${error.message}`;
+        } finally {
+          updatingWindow = false;
+          syncWindowControls();
+          syncDockNarrative();
+        }
+      }
+
+      async function saveThresholds() {
+        if (DEMO_MODE) {
+          updatingThresholds = true;
+          syncThresholdControls();
+          try {
+            state.price_jump_threshold_pct = readNumberInput(priceJumpThresholdInput, "Price jump threshold");
+            state.open_interest_threshold = readNumberInput(oiThresholdInput, "Open interest threshold");
+            state.spread_threshold_pct = readNumberInput(spreadThresholdInput, "Spread threshold");
+            state.sim_order_quote_size = readNumberInput(simOrderQuoteSizeInput, "Order quote size");
+            state.max_hold_minutes = readNumberInput(maxHoldMinutesInput, "Max hold minutes");
+            state.sim_stop_loss_pct = readNumberInput(simStopLossPctInput, "Stop loss percent");
+            state.live_open_cooldown_seconds = readNumberInput(liveOpenCooldownSecondsInput, "Live open cooldown seconds");
+            state.live_trading_allow_opens = liveTradingAllowOpensInput.value === "true";
+            state.live_max_order_quote_notional = readNumberInput(liveMaxOrderQuoteNotionalInput, "Live max order quote");
+            state.live_max_symbol_exposure_quote_notional = readNumberInput(liveMaxSymbolExposureQuoteNotionalInput, "Live max symbol exposure");
+            state.sim_take_profit_pct = readNumberInput(simTakeProfitPctInput, "Take profit 1 percent");
+            state.sim_take_profit_ratio_pct = readNumberInput(simTakeProfitRatioPctInput, "Take profit 1 size percent");
+            state.sim_take_profit_pct_2 = readNumberInput(simTakeProfitPct2Input, "Take profit 2 percent");
+            state.sim_take_profit_ratio_pct_2 = readNumberInput(simTakeProfitRatioPct2Input, "Take profit 2 size percent");
+            thresholdDraftDirty = false;
+            await refresh();
+          } catch (error) {
+            stamp.textContent = `Threshold update failed: ${error.message}`;
+          } finally {
+            updatingThresholds = false;
+            syncThresholdControls();
+            syncDockNarrative();
+          }
+          return;
+        }
+        updatingThresholds = true;
+        syncThresholdControls();
+        try {
+          const payload = {
+            price_jump_threshold_pct: readNumberInput(priceJumpThresholdInput, "Price jump threshold"),
+            open_interest_threshold: readNumberInput(oiThresholdInput, "Open interest threshold"),
+            spread_threshold_pct: readNumberInput(spreadThresholdInput, "Spread threshold"),
+            sim_order_quote_size: readNumberInput(simOrderQuoteSizeInput, "Order quote size"),
+            max_hold_minutes: readNumberInput(maxHoldMinutesInput, "Max hold minutes"),
+            sim_stop_loss_pct: readNumberInput(simStopLossPctInput, "Stop loss percent"),
+            live_open_cooldown_seconds: readNumberInput(liveOpenCooldownSecondsInput, "Live open cooldown seconds"),
+            live_trading_allow_opens: liveTradingAllowOpensInput.value === "true",
+            live_max_order_quote_notional: readNumberInput(liveMaxOrderQuoteNotionalInput, "Live max order quote"),
+            live_max_symbol_exposure_quote_notional: readNumberInput(liveMaxSymbolExposureQuoteNotionalInput, "Live max symbol exposure"),
+            sim_take_profit_pct: readNumberInput(simTakeProfitPctInput, "Take profit 1 percent"),
+            sim_take_profit_ratio_pct: readNumberInput(simTakeProfitRatioPctInput, "Take profit 1 size percent"),
+            sim_take_profit_pct_2: readNumberInput(simTakeProfitPct2Input, "Take profit 2 percent"),
+            sim_take_profit_ratio_pct_2: readNumberInput(simTakeProfitRatioPct2Input, "Take profit 2 size percent"),
+          };
+          const res = await fetch("/api/config", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+            throw new Error(body.error || `HTTP ${res.status}`);
+          }
+          thresholdDraftDirty = false;
+          await refresh();
+        } catch (error) {
+          stamp.textContent = `Threshold update failed: ${error.message}`;
+        } finally {
+          updatingThresholds = false;
+          syncThresholdControls();
+          syncDockNarrative();
+        }
+      }
+
+      async function setLiveTradingEnabled(enabled) {
+        if (DEMO_MODE) {
+          updatingLiveTrading = true;
+          syncLiveTradingControls();
+          state.live_trading_enabled = enabled;
+          updatingLiveTrading = false;
+          await refresh();
+          return;
+        }
+        updatingLiveTrading = true;
+        syncLiveTradingControls();
+        try {
+          const res = await fetch("/api/config", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ live_trading_enabled: enabled }),
+          });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+            throw new Error(body.error || `HTTP ${res.status}`);
+          }
+          await refresh();
+        } catch (error) {
+          stamp.textContent = `Live trading update failed: ${error.message}`;
+        } finally {
+          updatingLiveTrading = false;
+          syncLiveTradingControls();
+        }
+      }
+
+      railNav.addEventListener("click", (event) => {
+        const button = event.target.closest(".rail-button");
+        if (!button) return;
+        setView(button.dataset.view);
+      });
+
+      jumpToDockButton.addEventListener("click", () => {
+        if (isMobileDockMode()) {
+          setDockOpen(true);
+          return;
+        }
+        controlDock.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+
+      jumpToSignalsButton.addEventListener("click", () => {
+        document.getElementById("live-signals-section").scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+
+      heroBannerToggleButton.addEventListener("click", () => {
+        heroBannerCollapsed = !heroBannerCollapsed;
+        syncHeroBanner();
+      });
+
+      dockCloseButton.addEventListener("click", () => {
+        setDockOpen(false);
+      });
+
+      controlDock.addEventListener("click", (event) => {
+        if (event.target === controlDock && isMobileDockMode()) {
+          setDockOpen(false);
+          return;
+        }
+        const toggle = event.target.closest("[data-dock-toggle]");
+        if (!toggle) return;
+        const section = toggle.dataset.dockToggle;
+        dockSections[section] = !(dockSections[section] !== false);
+        syncDockSections();
+      });
+
+      lighterStreamButton.addEventListener("click", () => {
+        setStreamEnabled("lighter", !currentStreamControl.lighter);
+      });
+
+      gateStreamButton.addEventListener("click", () => {
+        setStreamEnabled("gate", !currentStreamControl.gate);
+      });
+
+      liveTradingToggleButton.addEventListener("click", () => {
+        setLiveTradingEnabled(!state.live_trading_enabled);
+      });
+
+      windowSaveButton.addEventListener("click", () => {
+        saveWindowHours();
+      });
+
+      thresholdSaveButton.addEventListener("click", () => {
+        saveThresholds();
+      });
+
+      pnlRangeFilter.addEventListener("change", async () => {
+        currentPnlRange = pnlRangeFilter.value;
+        await fetchPnl();
+      });
+
+      pnlExchangeFilter.addEventListener("change", async () => {
+        currentPnlExchange = pnlExchangeFilter.value;
+        await fetchPnl();
+      });
+
+      pnlDirectionFilter.addEventListener("change", async () => {
+        currentPnlDirection = pnlDirectionFilter.value;
+        await fetchPnl();
+      });
+
+      marketExchangeFilter.addEventListener("change", () => {
+        currentMarketExchange = marketExchangeFilter.value;
+        if (latestSnapshot) renderAtlas(latestSnapshot);
+      });
+
+      marketSearch.addEventListener("input", () => {
+        currentMarketSearch = marketSearch.value.trim().toLowerCase();
+        if (latestSnapshot) renderAtlas(latestSnapshot);
+      });
+
+      [
+        windowHoursInput,
+      ].forEach((input) => {
+        input.addEventListener("input", () => {
+          syncWindowDraftState();
+          syncWindowControls();
+        });
+      });
+
+      [
+        priceJumpThresholdInput,
+        oiThresholdInput,
+        spreadThresholdInput,
+        simOrderQuoteSizeInput,
+        maxHoldMinutesInput,
+        simStopLossPctInput,
+        liveOpenCooldownSecondsInput,
+        liveTradingAllowOpensInput,
+        liveMaxOrderQuoteNotionalInput,
+        liveMaxSymbolExposureQuoteNotionalInput,
+        simTakeProfitPctInput,
+        simTakeProfitRatioPctInput,
+        simTakeProfitPct2Input,
+        simTakeProfitRatioPct2Input,
+      ].forEach((input) => {
+        input.addEventListener("input", () => {
+          syncThresholdDraftState();
+          syncThresholdControls();
+          syncDockNarrative();
+        });
+        input.addEventListener("change", () => {
+          syncThresholdDraftState();
+          syncThresholdControls();
+          syncDockNarrative();
+        });
+      });
+
+      if (DEMO_MODE) {
+        currentStreamControl = { lighter: true, gate: false };
+        currentStreamEnabled = true;
+        stamp.textContent = `${t('stamp.mock') || "Mock mode"} / local preview`;
+      }
+
+      window.addEventListener("resize", () => {
+        if (!isMobileDockMode()) {
+          setDockOpen(false);
+          return;
+        }
+        setDockOpen(false);
+      });
+
+      window.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && dockOpen) {
+          setDockOpen(false);
+        }
+      });
+
+      function syncSignalTapeHeight() {
+        const focusBoard = document.querySelector(".overview-grid .focus-board");
+        const signalSection = document.getElementById("live-signals-section");
+        const signalTapeEl = document.getElementById("signal-tape");
+        if (!focusBoard || !signalSection || !signalTapeEl) return;
+        const targetH = focusBoard.getBoundingClientRect().height;
+        signalSection.style.height = targetH + "px";
+        const headH = signalSection.querySelector(".section-head").getBoundingClientRect().height;
+        signalTapeEl.style.maxHeight = (targetH - headH - 44) + "px";
+      }
+
+      window.addEventListener("resize", syncSignalTapeHeight);
+      const langToggleButton = document.getElementById('lang-toggle');
+      if (langToggleButton) {
+        langToggleButton.addEventListener('click', () => {
+          setLang(currentLang === 'zh' ? 'en' : 'zh');
+        });
+      }
+
+      syncDockSections();
+      syncDockChrome();
+      syncHeroBanner();
+      syncModeToggleLink();
+      setDockOpen(false);
+      applyLang();
+
+      refresh();
+      if (!DEMO_MODE) {
+        setInterval(refresh, 5000);
+      }
+      setTimeout(syncSignalTapeHeight, 100);
+    </script>
+  </body>
+</html>
