@@ -245,7 +245,7 @@ This project is intended for educational and research purposes only. Cryptocurre
 
 ## Author
 
-- **X / Twitter**: [@TraderX548826](https://x.com/TraderX548826)
+- **X / Twitter**: https://x.com/WooKiao
 
 Looking for a crypto exchange with competitive rebates?
 
